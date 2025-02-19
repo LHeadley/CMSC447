@@ -92,7 +92,7 @@ def checkout_item(request: ActionRequest, db: Session = Depends(get_db)):
     if not item:
         raise HTTPException(status_code=404, detail='Not enough quantity or item not found.')
 
-    item.quantity -= request.quantity
+    item.stock -= request.quantity
     log_action(db, 'checkout', item.name, item.id, request.quantity)
     db.commit()
 
@@ -105,7 +105,7 @@ def restock_item(request: ActionRequest, db: Session = Depends(get_db)):
     item = db.query(Item).filter_by(name=request.name).first()
 
     if item:
-        item.quantity += request.quantity
+        item.stock += request.quantity
     else:
         raise HTTPException(status_code=404, detail='Item not found.')
 
