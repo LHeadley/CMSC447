@@ -1,8 +1,8 @@
 from fastapi import FastAPI, HTTPException, Depends
-from sqlalchemy.orm import Session
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, func
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
+from sqlalchemy.orm import sessionmaker, declarative_base
 
 from RequestSchemas import CreateRequest, ItemRequest, ActionRequest
 
@@ -11,7 +11,7 @@ engine = create_engine(DATABASE_URL, echo=True)  # echo=True logs SQL queries
 SessionLocal = sessionmaker(bind=engine)
 Base = declarative_base()
 
-app = FastAPI()
+app = FastAPI(root_path='/dev')
 
 
 def get_db():
