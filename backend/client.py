@@ -1,9 +1,14 @@
 import argparse
-import requests
 import json
+import os
+
+import requests
+from dotenv import load_dotenv
 from tabulate import tabulate
 
-BASE_URL = 'http://127.0.0.1:8000'
+load_dotenv()
+
+BASE_URL = os.getenv('INVENTORY_API_URL', 'http://127.0.0.1:8001')
 
 
 def print_table(response):
