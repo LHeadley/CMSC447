@@ -45,10 +45,20 @@ class APIResponse:
     error: str = None
 
     def __init__(self, response: requests.Response = None, error: str = None,
-                 status: ResponseStatus = ResponseStatus.UNKNOWN_ERROR):
+                 status: ResponseStatus = None):
         self.response = response
-        self.status_code = status
-        self.is_success = status in (ResponseStatus.OK, ResponseStatus.CREATED)
+
+        if status is None:
+            if response is not None:
+                self.status_code = ResponseStatus(response.status_code) \
+                    if response.status_code in [item.value for item in ResponseStatus] \
+                    else ResponseStatus.UNKNOWN_ERROR
+            else:
+                self.status_code = ResponseStatus.UNKNOWN_ERROR
+        else:
+            self.status_code = status
+
+        self.is_success = self.status_code in (ResponseStatus.OK, ResponseStatus.CREATED)
 
         self.is_json = False
         self.json = None
@@ -86,7 +96,6 @@ class APIResponse:
             return self.response.text
 
 
-
 def _make_request(method: str, endpoint: str, timeout: int = 5, **kwargs) -> APIResponse:
     """
     Internal method to make an API request.
@@ -98,7 +107,6 @@ def _make_request(method: str, endpoint: str, timeout: int = 5, **kwargs) -> API
     """
     try:
         response = requests.request(method, endpoint, timeout=timeout, **kwargs)
-        print(response)
         return APIResponse(response)
     except requests.exceptions.Timeout:
         return APIResponse(error='Request timed out', status=ResponseStatus.TIMEOUT)
@@ -136,7 +144,7 @@ def get_item(item_name: str, url: str = BASE_URL, timeout: int = 5) -> APIRespon
     :param timeout: The timeout in seconds to make the API request.
     :return: APIResponse object representing the API response.
     """
-    return _make_request(method='GET', endpoint=f'{url}/item', timeout=timeout, json={'name': item_name})
+    return _make_request(method='GET', endpoint=f'{url}/items/{item_name}', timeout=timeout)
 
 
 def restock_item(item_name: str, quantity: int, url: str = BASE_URL, timeout: int = 5) -> APIResponse:
