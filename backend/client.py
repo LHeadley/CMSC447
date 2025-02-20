@@ -3,7 +3,7 @@ import os
 
 from dotenv import load_dotenv
 
-from api.inventoryAPI import get_inventory, get_logs, restock_item, checkout_item, delete_all_items, get_item, \
+from api.inventoryapi import get_inventory, get_logs, restock_item, checkout_item, delete_all_items, get_item, \
     create_item
 
 load_dotenv()

@@ -1,9 +1,8 @@
 import json
 import os
-
-import requests
 from enum import Enum
 
+import requests
 from dotenv import load_dotenv
 from tabulate import tabulate
 
