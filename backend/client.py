@@ -76,7 +76,11 @@ if __name__ == '__main__':
     parser.add_argument('--unit_weight', '--weight', '-weight', '-uw', type=int,
                         help='Weight per unit (required for create)')
     parser.add_argument('--price', '-price', '-p', type=int, help='Price per unit (required for create)')
+    parser.add_argument('--local', '-l', action='store_true')
     args = parser.parse_args()
+
+    if args.local:
+        BASE_URL = 'http://127.0.0.1:8001'
 
     if args.action == 'inventory':
         get_inventory()
