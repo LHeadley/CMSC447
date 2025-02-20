@@ -7,11 +7,6 @@ class ActionRequest(BaseModel):
     quantity: int
 
 
-# Request to get item data
-class ItemRequest(BaseModel):
-    name: str
-
-
 # Request for creating a new item
 class CreateRequest(BaseModel):
     name: str

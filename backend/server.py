@@ -4,7 +4,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-from request_schemas import CreateRequest, ItemRequest, ActionRequest
+from request_schemas import CreateRequest, ActionRequest
 
 DATABASE_URL = 'sqlite:///inventory.db'
 engine = create_engine(DATABASE_URL, echo=True)  # echo=True logs SQL queries
@@ -61,10 +61,10 @@ def get_items(db: Session = Depends(get_db)):
     return db.query(Item).all()
 
 
-@app.get('/item')
-def get_item(request: ItemRequest, db: Session = Depends(get_db)):
+@app.get('/items/{item_name}')
+def get_item(item_name: str, db: Session = Depends(get_db)):
     """Gets data for a specific item in inventory"""
-    item = db.query(Item).filter_by(name=request.name).first()
+    item = db.query(Item).filter_by(name=item_name).first()
     if not item:
         raise HTTPException(status_code=404, detail='Item not found.')
 
