@@ -4,7 +4,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-from RequestSchemas import CreateRequest, ItemRequest, ActionRequest
+from request_schemas import CreateRequest, ItemRequest, ActionRequest
 
 DATABASE_URL = 'sqlite:///inventory.db'
 engine = create_engine(DATABASE_URL, echo=True)  # echo=True logs SQL queries
