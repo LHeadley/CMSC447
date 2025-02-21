@@ -1,10 +1,15 @@
-from fastapi import FastAPI, HTTPException, Depends
+from typing import Type
+
+from fastapi import FastAPI, HTTPException, Depends, Response
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, func
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import sessionmaker, declarative_base
+from starlette.responses import JSONResponse
 
 from request_schemas import CreateRequest, ActionRequest
+from response_schemas import ItemResponse, MessageResponse
+from response_schemas import RESPONSE_404
 
 DATABASE_URL = 'sqlite:///inventory.db'
 engine = create_engine(DATABASE_URL, echo=True)  # echo=True logs SQL queries
@@ -46,7 +51,7 @@ class Log(Base):
 Base.metadata.create_all(engine)
 
 
-@app.delete('/delete_all')
+@app.delete('/delete_all', response_model=MessageResponse)
 def delete_all_items(db: Session = Depends(get_db)):
     """Delete all items from the inventory and clears all logs."""
     db.query(Item).delete()
@@ -55,32 +60,64 @@ def delete_all_items(db: Session = Depends(get_db)):
     return {'message': 'All items deleted from inventory.'}
 
 
-@app.get('/items')
-def get_items(db: Session = Depends(get_db)):
+@app.get('/items', response_model=list[ItemResponse], responses={
+    200: {
+        'description': 'Item requested by name',
+        'content': {
+            'application/json': {
+                'example': [
+                    {'name': 'bar', 'unit_weight': 1, 'price': 100, 'stock': 10},
+                    {'name': 'foo', 'unit_weight': 5, 'price': 10, 'stock': 1},
+                    {'name': 'baz', 'unit_weight': 1, 'price': 50, 'stock': 0},
+                ]
+            }
+        }
+    }
+})
+def get_items(db: Session = Depends(get_db)) -> list[Type[Item]]:
     """Fetch all items in inventory."""
     return db.query(Item).all()
 
 
-@app.get('/items/{item_name}')
+@app.get('/items/{item_name}', response_model=ItemResponse, responses={
+    200: {
+        'description': 'Item requested by name',
+        'content': {
+            'application/json': {
+                'example': {'name': 'bar', 'unit_weight': 1, 'price': 100, 'stock': 10}
+            }
+        }
+    },
+    **RESPONSE_404
+})
 def get_item(item_name: str, db: Session = Depends(get_db)):
     """Gets data for a specific item in inventory"""
     item = db.query(Item).filter_by(name=item_name).first()
     if not item:
-        raise HTTPException(status_code=404, detail='Item not found.')
+        return JSONResponse(status_code=404, content={'message': 'Item not found.'})
 
     return item
 
 
-@app.post('/create', status_code=201)
-def create_item(request: CreateRequest, db: Session = Depends(get_db)):
+@app.post('/create', status_code=201, response_model=MessageResponse, responses={
+    201: {
+        'model': MessageResponse,
+        'description': 'Item created successfully.'
+    },
+    409: {
+        'model': MessageResponse,
+        'description': 'Item with the given name already exists.'
+    }
+})
+def create_item(request: CreateRequest, response: Response, db: Session = Depends(get_db)):
     """Creates a new item in the inventory"""
     if db.query(Item).filter_by(name=request.name).first():
-        raise HTTPException(status_code=409, detail='Item already exists.')
+        return JSONResponse(status_code=409, content={'message': 'Item with the given name already exists.'})
 
     item = Item(name=request.name, unit_weight=request.unit_weight, price=request.price, stock=request.initial_stock)
     db.add(item)
     db.commit()
-
+    response.headers['Location'] = f'/items/{item.name}'
     return {'message': f'Created item {item.name} with an initial stock of {item.stock}'}
 
 
