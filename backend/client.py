@@ -22,32 +22,31 @@ if __name__ == '__main__':
     parser.add_argument('--local', '-l', action='store_true')
     args = parser.parse_args()
 
-    if args.local:
-        BASE_URL = 'http://127.0.0.1:8001'
+    url = 'http://127.0.0.1:8001' if args.local else BASE_URL
 
     if args.action == 'inventory':
-        print(get_inventory().formatted_string())
+        print(get_inventory(url=url).formatted_string())
     elif args.action == 'logs':
-        print(get_logs().formatted_string())
+        print(get_logs(url=url).formatted_string())
     elif args.action == 'restock':
         if not args.name or args.quantity is None:
             print('Error: --name and --quantity are required for restock.')
         else:
-            print(restock_item(args.name, args.quantity).formatted_string())
+            print(restock_item(args.name, args.quantity, url=url).formatted_string())
     elif args.action == 'checkout':
         if not args.name or args.quantity is None:
             print('Error: --name and --quantity are required for checkout.')
         else:
-            print(checkout_item(args.name, args.quantity).formatted_string())
+            print(checkout_item(args.name, args.quantity, url=url).formatted_string())
     elif args.action == 'delete_all':
         print(delete_all_items().formatted_string())
     elif args.action == 'check':
         if not args.name:
             print('Error: --name is required.')
         else:
-            print(get_item(args.name).formatted_string())
+            print(get_item(args.name, url=url).formatted_string())
     elif args.action == 'create':
         if not args.name or args.quantity is None or args.unit_weight is None or args.price is None:
             print('Error: --name, --quantity, --unit_weight and --price are required for creation.')
         else:
-            print(create_item(args.name, args.quantity, args.unit_weight, args.price).formatted_string())
+            print(create_item(args.name, args.quantity, args.unit_weight, args.price, url=url).formatted_string())
