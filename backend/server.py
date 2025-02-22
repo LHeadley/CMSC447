@@ -1,6 +1,6 @@
 from typing import Type
 
-from fastapi import FastAPI, HTTPException, Depends, Response
+from fastapi import FastAPI, Depends, Response
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, func
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
@@ -162,7 +162,7 @@ def restock_item(request: ActionRequest, db: Session = Depends(get_db)):
     if item:
         item.stock += request.quantity
     else:
-        raise HTTPException(status_code=404, detail='Item not found.')
+        return JSONResponse(status_code=404, content={'message': 'Item not found.'})
 
     log_action(db, 'restock', item.name, item.id, request.quantity)
     db.commit()
