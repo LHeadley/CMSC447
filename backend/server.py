@@ -121,14 +121,26 @@ def create_item(request: CreateRequest, response: Response, db: Session = Depend
     return {'message': f'Created item {item.name} with an initial stock of {item.stock}'}
 
 
-@app.post('/checkout')
+@app.post('/checkout', response_model=MessageResponse, responses={
+    200: {
+        'model': MessageResponse,
+        'description': 'Item checked out successfully.'
+    },
+    409: {
+        'model': MessageResponse,
+        'description': 'Not enough stock.'
+    },
+    **RESPONSE_404
+})
 def checkout_item(request: ActionRequest, db: Session = Depends(get_db)):
     """Checkout an item from inventory."""
     item = db.query(Item).filter_by(name=request.name).first()
 
     if not item:
-        raise HTTPException(status_code=404, detail='Not enough quantity or item not found.')
+        return JSONResponse(status_code=404, content={'message': 'Item not found.'})
 
+    if item.stock < request.quantity:
+        return JSONResponse(status_code=409, content={'message': 'Not enough stock.'})
     item.stock -= request.quantity
     log_action(db, 'checkout', item.name, item.id, request.quantity)
     db.commit()
@@ -136,7 +148,13 @@ def checkout_item(request: ActionRequest, db: Session = Depends(get_db)):
     return {'message': f'Checked out {request.quantity} {request.name}(s).'}
 
 
-@app.post('/restock')
+@app.post('/restock', response_model=MessageResponse, responses={
+    200: {
+        'model': MessageResponse,
+        'description': 'Item restocked successfully.'
+    },
+    **RESPONSE_404
+})
 def restock_item(request: ActionRequest, db: Session = Depends(get_db)):
     """Restock an item in inventory."""
     item = db.query(Item).filter_by(name=request.name).first()
