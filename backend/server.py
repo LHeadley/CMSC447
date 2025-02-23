@@ -79,7 +79,7 @@ def delete_all_items(db: Session = Depends(get_db)):
 
 @app.get('/items', response_model=list[ItemResponse], responses={
     200: {
-        'description': 'Item requested by name',
+        'description': 'All items in inventory',
         'content': {
             'application/json': {
                 'example': [
