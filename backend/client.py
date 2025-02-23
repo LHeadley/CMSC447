@@ -39,7 +39,7 @@ if __name__ == '__main__':
         else:
             print(checkout_item(args.name, args.quantity, url=url).formatted_string())
     elif args.action == 'delete_all':
-        print(delete_all_items().formatted_string())
+        print(delete_all_items(url=url).formatted_string())
     elif args.action == 'check':
         if not args.name:
             print('Error: --name is required.')
