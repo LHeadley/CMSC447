@@ -1,15 +1,17 @@
-from typing import Type
+import datetime
+from typing import Type, List, Union
 
 from fastapi import FastAPI, Depends, Response
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, func
 from sqlalchemy import create_engine
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, relationship, load_only
 from sqlalchemy.orm import sessionmaker, declarative_base
 from starlette.responses import JSONResponse
 
 from request_schemas import CreateRequest, ActionRequest
 from response_schemas import ItemResponse, MessageResponse
 from response_schemas import RESPONSE_404
+from response_schemas import TransactionResponse, TransactionItemResponse
 
 DATABASE_URL = 'sqlite:///inventory.db'
 engine = create_engine(DATABASE_URL, echo=True)  # echo=True logs SQL queries
@@ -35,17 +37,32 @@ class Item(Base):
     unit_weight = Column(Integer, nullable=False)  # weight/quantity per unit
     price = Column(Integer, nullable=False)  # price per unit
     stock = Column(Integer, default=0)
+    supplier = Column(String)
 
 
-class Log(Base):
-    __tablename__ = 'logs'
+class Transaction(Base):
+    __tablename__ = 'transactions'
 
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
     action = Column(String, nullable=False)  # 'checkout' or 'restock'
-    item_name = Column(String, ForeignKey('items.name'))
-    item_id = Column(Integer, ForeignKey('items.id'))
-    quantity = Column(Integer, nullable=False)
     timestamp = Column(DateTime, default=func.now())
+    day_of_week = Column(String,
+                         default=['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][
+                             datetime.datetime.today().weekday()])
+    student_id = Column(String, nullable=True)
+
+    entries = relationship('TransactionItem', back_populates='transaction', cascade='all, delete-orphan')
+
+
+class TransactionItem(Base):
+    __tablename__ = 'transaction_items'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    transaction_id = Column(Integer, ForeignKey('transactions.id'), nullable=False)
+    item_name = Column(String, ForeignKey('items.name'), nullable=False)
+    item_quantity = Column(Integer, nullable=False)
+
+    transaction = relationship('Transaction', back_populates='entries')
 
 
 Base.metadata.create_all(engine)
@@ -55,7 +72,7 @@ Base.metadata.create_all(engine)
 def delete_all_items(db: Session = Depends(get_db)):
     """Delete all items from the inventory and clears all logs."""
     db.query(Item).delete()
-    db.query(Log).delete()
+    db.query(TransactionItem).delete()
     db.commit()
     return {'message': 'All items deleted from inventory.'}
 
@@ -124,7 +141,7 @@ def create_item(request: CreateRequest, response: Response, db: Session = Depend
 @app.post('/checkout', response_model=MessageResponse, responses={
     200: {
         'model': MessageResponse,
-        'description': 'Item checked out successfully.'
+        'description': 'Item(s) checked out successfully.'
     },
     409: {
         'model': MessageResponse,
@@ -132,20 +149,39 @@ def create_item(request: CreateRequest, response: Response, db: Session = Depend
     },
     **RESPONSE_404
 })
-def checkout_item(request: ActionRequest, db: Session = Depends(get_db)):
+def checkout_item(request: Union[ActionRequest, list[ActionRequest]], db: Session = Depends(get_db)):
     """Checkout an item from inventory."""
-    item = db.query(Item).filter_by(name=request.name).first()
+    requests: list[ActionRequest]
+    if not isinstance(request, list):
+        requests = [request]
+    else:
+        requests = request
 
-    if not item:
-        return JSONResponse(status_code=404, content={'message': 'Item not found.'})
+    not_found = []
+    insufficient_stock = []
+    for action in requests:
+        item = db.query(Item).filter_by(name=action.name).first()
 
-    if item.stock < request.quantity:
-        return JSONResponse(status_code=409, content={'message': 'Not enough stock.'})
-    item.stock -= request.quantity
-    log_action(db, 'checkout', item.name, item.id, request.quantity)
+        if not item:
+            not_found.append(action.name)
+
+        if item.stock < action.quantity:
+            insufficient_stock.append(action.name)
+
+    if not_found:
+        return JSONResponse(status_code=404, content={'message': f'Item(s) {", ".join(not_found)} not found.'})
+
+    if insufficient_stock:
+        return JSONResponse(status_code=409,
+                            content={'message': f'Not enough stock for item(s) {", ".join(insufficient_stock)}.'})
+
+    for action in requests:
+        db.query(Item).filter_by(name=action.name).first().stock -= action.quantity
+
+    log_action(db, 'checkout', requests)
     db.commit()
 
-    return {'message': f'Checked out {request.quantity} {request.name}(s).'}
+    return {'message': 'Checked out items successfully.'}
 
 
 @app.post('/restock', response_model=MessageResponse, responses={
@@ -164,22 +200,45 @@ def restock_item(request: ActionRequest, db: Session = Depends(get_db)):
     else:
         return JSONResponse(status_code=404, content={'message': 'Item not found.'})
 
-    log_action(db, 'restock', item.name, item.id, request.quantity)
+    log_action(db, 'restock', [request])
     db.commit()
 
     return {'message': f'Restocked {request.quantity} {request.name}(s).'}
 
 
-@app.get('/logs')
-def get_logs(db: Session = Depends(get_db)):
+@app.get('/logs', response_model=List[TransactionResponse], responses={
+    200: {
+        'model': List[TransactionResponse],
+        'description': 'The list of all transactions'
+    }
+})
+def get_logs(db: Session = Depends(get_db)) -> list[TransactionResponse]:
     """Fetch all action logs."""
-    return db.query(Log).all()
+    transactions = db.query(Transaction).options(load_only(
+        Transaction.id,
+        Transaction.student_id,
+        Transaction.day_of_week,
+        Transaction.action,
+        Transaction.timestamp
+    )).all()
+    return [
+        TransactionResponse(transaction_id=getattr(transaction, "id"),
+                            student_id=getattr(transaction, "student_id"),
+                            day_of_week=getattr(transaction, "day_of_week"),
+                            action=getattr(transaction, "action"),
+                            timestamp=getattr(transaction, "timestamp"),
+                            items=[TransactionItemResponse(item_name=item.item_name, item_quantity=item.item_quantity)
+                                   for item in transaction.entries])
+        for transaction in transactions]
 
 
-# Helper function to log actions
-def log_action(db, action, name, item_id, quantity):
-    log_entry = Log(action=action, item_name=name, item_id=item_id, quantity=quantity)
-    db.add(log_entry)
+def log_action(db: Session, action: str, items: list[ActionRequest]):
+    transaction = Transaction(action=action)
+    db.add(transaction)
+    db.flush()
+
+    for item in items:
+        db.add(TransactionItem(transaction_id=transaction.id, item_name=item.name, item_quantity=item.quantity))
 
 
 # Create a database connection
