@@ -8,10 +8,10 @@ from sqlalchemy.orm import Session, relationship
 from sqlalchemy.orm import sessionmaker, declarative_base
 from starlette.responses import JSONResponse
 
-from request_schemas import CreateRequest, ItemRequest, WeekdayModel, ActionTypeModel, MultiItemRequest
-from response_schemas import ItemResponse, MessageResponse
-from response_schemas import RESPONSE_404
-from response_schemas import TransactionResponse, TransactionItemResponse
+from models.request_schemas import CreateRequest, ItemRequest, WeekdayModel, ActionTypeModel, MultiItemRequest
+from models.response_schemas import ItemResponse, MessageResponse
+from models.response_schemas import RESPONSE_404
+from models.response_schemas import TransactionResponse, TransactionItemResponse
 
 DATABASE_URL = 'sqlite:///inventory.db'
 engine = create_engine(DATABASE_URL, echo=True)  # echo=True logs SQL queries
