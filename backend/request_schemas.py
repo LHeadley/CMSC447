@@ -1,3 +1,5 @@
+from enum import Enum
+
 from pydantic import BaseModel
 
 
@@ -13,3 +15,18 @@ class CreateRequest(BaseModel):
     unit_weight: int
     price: int
     initial_stock: int
+
+
+class WeekdayModel(str, Enum):
+    MONDAY = 'Monday'
+    TUESDAY = 'Tuesday'
+    WEDNESDAY = 'Wednesday'
+    THURSDAY = 'Thursday'
+    FRIDAY = 'Friday'
+    SATURDAY = 'Saturday'
+    SUNDAY = 'Sunday'
+
+
+class ActionTypeModel(str, Enum):
+    CHECKOUT = 'checkout'
+    RESTOCK = 'restock'

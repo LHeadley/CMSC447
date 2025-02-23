@@ -4,11 +4,11 @@ from typing import Type, List, Union
 from fastapi import FastAPI, Depends, Response
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, func
 from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, relationship, load_only
+from sqlalchemy.orm import Session, relationship
 from sqlalchemy.orm import sessionmaker, declarative_base
 from starlette.responses import JSONResponse
 
-from request_schemas import CreateRequest, ActionRequest
+from request_schemas import CreateRequest, ActionRequest, WeekdayModel, ActionTypeModel
 from response_schemas import ItemResponse, MessageResponse
 from response_schemas import RESPONSE_404
 from response_schemas import TransactionResponse, TransactionItemResponse
@@ -212,15 +212,27 @@ def restock_item(request: ActionRequest, db: Session = Depends(get_db)):
         'description': 'The list of all transactions'
     }
 })
-def get_logs(db: Session = Depends(get_db)) -> list[TransactionResponse]:
+def get_logs(db: Session = Depends(get_db), day_of_week: WeekdayModel | int | None = None,
+             student_id: str | None = None,
+             item_name: str | None = None, action: ActionTypeModel | None = None) -> list[TransactionResponse]:
     """Fetch all action logs."""
-    transactions = db.query(Transaction).options(load_only(
-        Transaction.id,
-        Transaction.student_id,
-        Transaction.day_of_week,
-        Transaction.action,
-        Transaction.timestamp
-    )).all()
+    query = db.query(Transaction)
+
+    if day_of_week is not None:
+        if isinstance(day_of_week, int):
+            query = query.filter_by(
+                day_of_week=['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][
+                    day_of_week])
+        else:
+            query = query.filter_by(day_of_week=day_of_week)
+    if student_id is not None:
+        query = query.filter_by(student_id=student_id)
+    if action is not None:
+        query = query.filter_by(action=action)
+    if item_name is not None:
+        query = query.filter(Transaction.entries.any(item_name=item_name))
+
+    transactions = query.all()
     return [
         TransactionResponse(transaction_id=getattr(transaction, "id"),
                             student_id=getattr(transaction, "student_id"),
