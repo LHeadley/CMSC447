@@ -8,6 +8,12 @@ from pydantic import BaseModel, Field
 class ItemRequest(BaseModel):
     name: str
     quantity: int
+    student_id: Optional[str] = Field(default=None)
+
+
+class MultiItemRequest(BaseModel):
+    student_id: Optional[str] = Field(default=None)
+    items: list[ItemRequest]
 
 
 # Request for creating a new item

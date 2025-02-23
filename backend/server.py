@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session, relationship
 from sqlalchemy.orm import sessionmaker, declarative_base
 from starlette.responses import JSONResponse
 
-from request_schemas import CreateRequest, ItemRequest, WeekdayModel, ActionTypeModel
+from request_schemas import CreateRequest, ItemRequest, WeekdayModel, ActionTypeModel, MultiItemRequest
 from response_schemas import ItemResponse, MessageResponse
 from response_schemas import RESPONSE_404
 from response_schemas import TransactionResponse, TransactionItemResponse
@@ -150,24 +150,24 @@ def create_item(request: CreateRequest, response: Response, db: Session = Depend
     },
     **RESPONSE_404
 })
-def checkout_item(request: Union[ItemRequest, list[ItemRequest]], db: Session = Depends(get_db)):
+def checkout_item(request: Union[ItemRequest, MultiItemRequest], db: Session = Depends(get_db)):
     """Checkout an item from inventory."""
-    requests: list[ItemRequest]
-    if not isinstance(request, list):
-        requests = [request]
+    multi_request: MultiItemRequest
+    if not isinstance(request, MultiItemRequest):
+        multi_request = MultiItemRequest(student_id=request.student_id, items=[request])
     else:
-        requests = request
+        multi_request = request
 
     not_found = []
     insufficient_stock = []
-    for action in requests:
-        item = db.query(Item).filter_by(name=action.name).first()
+    for item_request in multi_request.items:
+        item = db.query(Item).filter_by(name=item_request.name).first()
 
         if not item:
-            not_found.append(action.name)
+            not_found.append(item_request.name)
 
-        if item.stock < action.quantity:
-            insufficient_stock.append(action.name)
+        if item.stock < item_request.quantity:
+            insufficient_stock.append(item_request.name)
 
     if not_found:
         return JSONResponse(status_code=404, content={'message': f'Item(s) {", ".join(not_found)} not found.'})
@@ -176,10 +176,10 @@ def checkout_item(request: Union[ItemRequest, list[ItemRequest]], db: Session = 
         return JSONResponse(status_code=409,
                             content={'message': f'Not enough stock for item(s) {", ".join(insufficient_stock)}.'})
 
-    for action in requests:
-        db.query(Item).filter_by(name=action.name).first().stock -= action.quantity
+    for item_request in multi_request.items:
+        db.query(Item).filter_by(name=item_request.name).first().stock -= item_request.quantity
 
-    log_action(db, 'checkout', requests)
+    log_action(db, ActionTypeModel.CHECKOUT, items=multi_request)
     db.commit()
 
     return {'message': 'Checked out items successfully.'}
@@ -201,7 +201,7 @@ def restock_item(request: ItemRequest, db: Session = Depends(get_db)):
     else:
         return JSONResponse(status_code=404, content={'message': 'Item not found.'})
 
-    log_action(db, 'restock', [request])
+    log_action(db, action=ActionTypeModel.RESTOCK, items=MultiItemRequest(items=[request]))
     db.commit()
 
     return {'message': f'Restocked {request.quantity} {request.name}(s).'}
@@ -245,10 +245,10 @@ def get_logs(db: Session = Depends(get_db), day_of_week: WeekdayModel | int | No
         for transaction in transactions]
 
 
-def log_action(db: Session, action: str, items: list[ItemRequest]):
-    transaction = Transaction(action=action)
+def log_action(db: Session, action: ActionTypeModel, items: MultiItemRequest):
+    transaction = Transaction(action=action, student_id=items.student_id)
     db.add(transaction)
     db.flush()
 
-    for item in items:
+    for item in items.items:
         db.add(TransactionItem(transaction_id=transaction.id, item_name=item.name, item_quantity=item.quantity))
