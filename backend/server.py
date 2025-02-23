@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session, relationship
 from sqlalchemy.orm import sessionmaker, declarative_base
 from starlette.responses import JSONResponse
 
-from request_schemas import CreateRequest, ActionRequest, WeekdayModel, ActionTypeModel
+from request_schemas import CreateRequest, ItemRequest, WeekdayModel, ActionTypeModel
 from response_schemas import ItemResponse, MessageResponse
 from response_schemas import RESPONSE_404
 from response_schemas import TransactionResponse, TransactionItemResponse
@@ -149,9 +149,9 @@ def create_item(request: CreateRequest, response: Response, db: Session = Depend
     },
     **RESPONSE_404
 })
-def checkout_item(request: Union[ActionRequest, list[ActionRequest]], db: Session = Depends(get_db)):
+def checkout_item(request: Union[ItemRequest, list[ItemRequest]], db: Session = Depends(get_db)):
     """Checkout an item from inventory."""
-    requests: list[ActionRequest]
+    requests: list[ItemRequest]
     if not isinstance(request, list):
         requests = [request]
     else:
@@ -191,7 +191,7 @@ def checkout_item(request: Union[ActionRequest, list[ActionRequest]], db: Sessio
     },
     **RESPONSE_404
 })
-def restock_item(request: ActionRequest, db: Session = Depends(get_db)):
+def restock_item(request: ItemRequest, db: Session = Depends(get_db)):
     """Restock an item in inventory."""
     item = db.query(Item).filter_by(name=request.name).first()
 
@@ -244,7 +244,7 @@ def get_logs(db: Session = Depends(get_db), day_of_week: WeekdayModel | int | No
         for transaction in transactions]
 
 
-def log_action(db: Session, action: str, items: list[ActionRequest]):
+def log_action(db: Session, action: str, items: list[ItemRequest]):
     transaction = Transaction(action=action)
     db.add(transaction)
     db.flush()

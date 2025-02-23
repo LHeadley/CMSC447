@@ -4,7 +4,7 @@ from pydantic import BaseModel
 
 
 # Item request for checkout/restock
-class ActionRequest(BaseModel):
+class ItemRequest(BaseModel):
     name: str
     quantity: int
 
