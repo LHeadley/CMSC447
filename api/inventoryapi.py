@@ -173,6 +173,19 @@ def checkout_item(item_name: str, quantity: int, url: str = BASE_URL, timeout: i
                          json={'name': item_name, 'quantity': quantity})
 
 
+def checkout_items(items: list[dict], url: str = BASE_URL, timeout: int = 5) -> APIResponse:
+    """
+    Make a request to check out multiple items.
+    :param items: A list of dicts each containing 'name': str and 'quantity': int pairings representing the items
+                    to check out.
+    :param url: The URL to make the API request.
+    :param timeout: The timeout in seconds to make the API request.
+    :return: APIResponse object representing the API response
+    """
+
+    return _make_request(method='POST', endpoint=f'{url}/checkout', timeout=timeout, json=items)
+
+
 def create_item(item_name: str, initial_stock: int, unit_weight: int, price: int, url: str = BASE_URL,
                 timeout: int = 5) -> APIResponse:
     """

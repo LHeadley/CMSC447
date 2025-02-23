@@ -4,7 +4,7 @@ import os
 from dotenv import load_dotenv
 
 from api.inventoryapi import get_inventory, get_logs, restock_item, checkout_item, delete_all_items, get_item, \
-    create_item
+    create_item, checkout_items
 
 load_dotenv()
 
@@ -12,10 +12,15 @@ BASE_URL = os.getenv('INVENTORY_API_URL', 'http://127.0.0.1:8001')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Client for Inventory System')
-    parser.add_argument('action', choices=['inventory', 'logs', 'restock', 'checkout', 'delete_all', 'create', 'check'],
+    parser.add_argument('action', choices=['inventory', 'logs', 'restock', 'checkout', 'delete_all', 'create', 'check',
+                                           'checkout_multi'],
                         help='Action to perform')
-    parser.add_argument('--name', '-n', type=str, help='Item name (required for restock/checkout/check/create)')
-    parser.add_argument('--quantity', '-q', type=int, help='Quantity (required for restock/checkout/create)')
+    parser.add_argument('--name', '-n', type=str,
+                        help='Item name (required for restock/checkout (single-item)/check/create)')
+    parser.add_argument('--quantity', '-q', type=int,
+                        help='Quantity (required for restock/checkout (single-item)/create)')
+    parser.add_argument('--names', type=str, help='Item name list (required for checkout (multi-item)')
+    parser.add_argument('--quantities', type=str, help='Quantity list (required for checkout (multi-item)')
     parser.add_argument('--unit_weight', '--weight', '-weight', '-uw', type=int,
                         help='Weight per unit (required for create)')
     parser.add_argument('--price', '-price', '-p', type=int, help='Price per unit (required for create)')
@@ -34,10 +39,26 @@ if __name__ == '__main__':
         else:
             print(restock_item(args.name, args.quantity, url=url).formatted_string())
     elif args.action == 'checkout':
-        if not args.name or args.quantity is None:
-            print('Error: --name and --quantity are required for checkout.')
-        else:
+        if args.names and args.quantities:
+            names = args.names.split(',')
+            try:
+                quantities = [int(quantity) for quantity in args.quantities.split(',')]
+            except ValueError:
+                print('Error: --quantities expects a list of comma seperated integers')
+                exit()
+
+            if len(names) != len(quantities):
+                print('Error: --names and --quantities must both be comma seperated lists with the same length')
+            else:
+                items = []
+                for name, quantity in zip(names, quantities):
+                    items.append({'name': name, 'quantity': quantity})
+
+                print(checkout_items(items=items, url=url).formatted_string())
+        elif args.name and args.quantity:
             print(checkout_item(args.name, args.quantity, url=url).formatted_string())
+        else:
+            print('Error: Either --name and --quantity or --names and --quantities are required for checkout.')
     elif args.action == 'delete_all':
         print(delete_all_items(url=url).formatted_string())
     elif args.action == 'check':
