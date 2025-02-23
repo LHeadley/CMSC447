@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Union
+from typing import Optional
 
 from pydantic import BaseModel
 
@@ -9,6 +9,7 @@ class ItemResponse(BaseModel):
     unit_weight: int
     price: int
     stock: int
+    supplier: Optional[str]
 
 
 class TransactionItemResponse(BaseModel):
@@ -18,7 +19,7 @@ class TransactionItemResponse(BaseModel):
 
 class TransactionResponse(BaseModel):
     transaction_id: int
-    student_id: Union[str, None]
+    student_id: Optional[str]
     day_of_week: str
     action: str
     timestamp: datetime

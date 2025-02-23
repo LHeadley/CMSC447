@@ -131,7 +131,8 @@ def create_item(request: CreateRequest, response: Response, db: Session = Depend
     if db.query(Item).filter_by(name=request.name).first():
         return JSONResponse(status_code=409, content={'message': 'Item with the given name already exists.'})
 
-    item = Item(name=request.name, unit_weight=request.unit_weight, price=request.price, stock=request.initial_stock)
+    item = Item(name=request.name, unit_weight=request.unit_weight, price=request.price, stock=request.initial_stock,
+                supplier=request.supplier)
     db.add(item)
     db.commit()
     response.headers['Location'] = f'/items/{item.name}'
@@ -251,10 +252,3 @@ def log_action(db: Session, action: str, items: list[ItemRequest]):
 
     for item in items:
         db.add(TransactionItem(transaction_id=transaction.id, item_name=item.name, item_quantity=item.quantity))
-
-
-# Create a database connection
-DATABASE_URL = 'sqlite:///inventory.db'
-engine = create_engine(DATABASE_URL, echo=True)
-Session = sessionmaker(bind=engine)
-Base = declarative_base()

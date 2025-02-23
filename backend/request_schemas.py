@@ -1,6 +1,7 @@
 from enum import Enum
+from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 # Item request for checkout/restock
@@ -15,6 +16,7 @@ class CreateRequest(BaseModel):
     unit_weight: int
     price: int
     initial_stock: int
+    supplier: Optional[str] = Field(default=None)
 
 
 class WeekdayModel(str, Enum):
