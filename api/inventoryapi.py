@@ -168,7 +168,7 @@ def get_logs(item_name: str = None, student_id: str = None, weekday: WeekdayMode
     if student_id:
         options.append(f'student_id={student_id}')
     if weekday:
-        options.append(f'weekday={weekday}')
+        options.append(f'day_of_week={weekday}')
     if type:
         options.append(f'action={type}')
 

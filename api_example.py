@@ -212,16 +212,17 @@ def logs_example():
 
     # Get logs for all items with name A
     res = inventoryapi.get_logs(
-        item_name='A'
+        item_name='A',
+        url=URL
     )
-
     print(res.formatted_string())
 
     # Options can be combined so this gets all items checked out on a Monday by student with ID ABC123
     res = inventoryapi.get_logs(
         type=ActionTypeModel.CHECKOUT,
         weekday=WeekdayModel.MONDAY,
-        student_id='ABC123'
+        student_id='ABC123',
+        url=URL
     )
     print(res.formatted_string())
     print()
