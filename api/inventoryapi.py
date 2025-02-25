@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 from pydantic import BaseModel, TypeAdapter, ValidationError
 from tabulate import tabulate
 
-from models.request_schemas import ItemRequest, MultiItemRequest, CreateRequest
+from models.request_schemas import ItemRequest, MultiItemRequest, CreateRequest, WeekdayModel, ActionTypeModel
 from models.response_schemas import ItemResponse, TransactionResponse, MessageResponse
 
 load_dotenv()
@@ -101,6 +101,7 @@ class APIResponse:
             return tabulate(data, headers=headers, tablefmt='grid')
         elif self.is_success:
             return self.response.text
+        return ''
 
 
 def _make_request(expected_response_model: Type, method: str, endpoint: str, timeout: int = 5,
@@ -146,15 +147,34 @@ def get_inventory(url: str = BASE_URL, timeout: int = 5) -> APIResponse:
                          timeout=timeout)
 
 
-def get_logs(url: str = BASE_URL, timeout: int = 5) -> APIResponse:
+def get_logs(item_name: str = None, student_id: str = None, weekday: WeekdayModel = None, type: ActionTypeModel = None,
+             url: str = BASE_URL, timeout: int = 5) -> APIResponse:
     """
     Make a request to get a list of all logs.
     If successful, the returned APIResponse's model will be set to a List[TransactionResponse]
+
+    :param item_name: The name of the item to search logs for.
+    :param student_id: The student ID to search logs for.
+    :param weekday: The day of the week to search logs for.
+    :param type: The type of action to search logs for.
     :param url: The URL to make the API request.
     :param timeout: The timeout in seconds to make the API request.
     :return: APIResponse object representing the API response.
     """
-    return _make_request(expected_response_model=List[TransactionResponse], method='GET', endpoint=f'{url}/logs',
+
+    options = []
+    if item_name:
+        options.append(f'item_name={item_name}')
+    if student_id:
+        options.append(f'student_id={student_id}')
+    if weekday:
+        options.append(f'weekday={weekday}')
+    if type:
+        options.append(f'action={type}')
+
+    opt_str = '&'.join(options)
+    return _make_request(expected_response_model=List[TransactionResponse], method='GET',
+                         endpoint=f'{url}/logs?{opt_str}',
                          timeout=timeout)
 
 
