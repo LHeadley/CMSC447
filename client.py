@@ -76,9 +76,6 @@ if __name__ == '__main__':
         if not args.name or args.quantity is None or args.unit_weight is None or args.price is None:
             print('Error: --name, --quantity, --unit_weight and --price are required for creation.')
         else:
-            item = CreateRequest(name=args.name, initial_stock=args.quantity, unit_weight=args.unit_weight,
-                                 price=args.price, supplier=supplier)
-            print(item.model_dump_json(indent=4))
             print(create_item(
-
-                item=item, url=url).formatted_string())
+                item=CreateRequest(name=args.name, initial_stock=args.quantity, unit_weight=args.unit_weight,
+                                   price=args.price, supplier=supplier), url=url).formatted_string())
