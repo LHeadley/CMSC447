@@ -165,8 +165,7 @@ def checkout_item(request: Union[ItemRequest, MultiItemRequest], db: Session = D
 
         if not item:
             not_found.append(item_request.name)
-
-        if item.stock < item_request.quantity:
+        elif item.stock < item_request.quantity:
             insufficient_stock.append(item_request.name)
 
     if not_found:
