@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 
 from api.inventoryapi import get_inventory, get_logs, restock_item, checkout_item, delete_all_items, get_item, \
     create_item, checkout_items
+from models.request_schemas import ItemRequest, MultiItemRequest, CreateRequest
 
 load_dotenv()
 
@@ -25,9 +26,13 @@ if __name__ == '__main__':
                         help='Weight per unit (required for create)')
     parser.add_argument('--price', '-price', '-p', type=int, help='Price per unit (required for create)')
     parser.add_argument('--local', '-l', action='store_true')
+    parser.add_argument('--id', '-i', help='Student ID for use in checkout', type=str)
+    parser.add_argument('--supplier', '-s', type=str, help='Supplier name for use in create')
     args = parser.parse_args()
 
     url = 'http://127.0.0.1:8001' if args.local else BASE_URL
+    supplier = args.supplier if args.supplier else None
+    student_id = args.id if args.id else None
 
     if args.action == 'inventory':
         print(get_inventory(url=url).formatted_string())
@@ -37,7 +42,7 @@ if __name__ == '__main__':
         if not args.name or args.quantity is None:
             print('Error: --name and --quantity are required for restock.')
         else:
-            print(restock_item(args.name, args.quantity, url=url).formatted_string())
+            print(restock_item(ItemRequest(name=args.name, quantity=args.quantity), url=url).formatted_string())
     elif args.action == 'checkout':
         if args.names and args.quantities:
             names = args.names.split(',')
@@ -52,11 +57,12 @@ if __name__ == '__main__':
             else:
                 items = []
                 for name, quantity in zip(names, quantities):
-                    items.append({'name': name, 'quantity': quantity})
+                    items.append(ItemRequest(name=name, quantity=quantity))
 
-                print(checkout_items(items=items, url=url).formatted_string())
+                print(checkout_items(MultiItemRequest(items=items, student_id=student_id), url=url).formatted_string())
         elif args.name and args.quantity:
-            print(checkout_item(args.name, args.quantity, url=url).formatted_string())
+            print(checkout_item(ItemRequest(name=args.name, quantity=args.quantity, student_id=student_id),
+                                url=url).formatted_string())
         else:
             print('Error: Either --name and --quantity or --names and --quantities are required for checkout.')
     elif args.action == 'delete_all':
@@ -70,4 +76,9 @@ if __name__ == '__main__':
         if not args.name or args.quantity is None or args.unit_weight is None or args.price is None:
             print('Error: --name, --quantity, --unit_weight and --price are required for creation.')
         else:
-            print(create_item(args.name, args.quantity, args.unit_weight, args.price, url=url).formatted_string())
+            item = CreateRequest(name=args.name, initial_stock=args.quantity, unit_weight=args.unit_weight,
+                                 price=args.price, supplier=supplier)
+            print(item.model_dump_json(indent=4))
+            print(create_item(
+
+                item=item, url=url).formatted_string())

@@ -1,10 +1,15 @@
 import json
 import os
 from enum import Enum
+from typing import Type, List, Union
 
 import requests
 from dotenv import load_dotenv
+from pydantic import BaseModel, TypeAdapter, ValidationError
 from tabulate import tabulate
+
+from models.request_schemas import ItemRequest, MultiItemRequest, CreateRequest
+from models.response_schemas import ItemResponse, TransactionResponse, MessageResponse
 
 load_dotenv()
 BASE_URL = os.getenv('INVENTORY_API_URL', 'http://127.0.0.1:8001')
@@ -36,6 +41,7 @@ class APIResponse:
          is_success (bool): True if the response status code is a 2xx status code.
          is_json (bool): True if the response status code is a json object.
          error (str): Error message if the request failed.
+         model (extends BaseModel): Model for the response from the server. None if the request failed.
     """
     response: requests.Response = None
     status_code: ResponseStatus
@@ -43,6 +49,7 @@ class APIResponse:
     is_success: bool
     is_json: bool
     error: str = None
+    model: Union[type[BaseModel], list[type[BaseModel]], None]
 
     def __init__(self, response: requests.Response = None, error: str = None,
                  status: ResponseStatus = None):
@@ -96,7 +103,8 @@ class APIResponse:
             return self.response.text
 
 
-def _make_request(method: str, endpoint: str, timeout: int = 5, **kwargs) -> APIResponse:
+def _make_request(expected_response_model: Type, method: str, endpoint: str, timeout: int = 5,
+                  **kwargs) -> APIResponse:
     """
     Internal method to make an API request.
     :param method: The HTTP request method to use.
@@ -107,7 +115,17 @@ def _make_request(method: str, endpoint: str, timeout: int = 5, **kwargs) -> API
     """
     try:
         response = requests.request(method, endpoint, timeout=timeout, **kwargs)
-        return APIResponse(response)
+        apiresponse = APIResponse(response)
+        if expected_response_model is not None:
+            try:
+                adapter = TypeAdapter(expected_response_model)
+                model = adapter.validate_python(apiresponse.json)
+            except ValidationError:
+                model = None
+        else:
+            model = None
+        apiresponse.model = model
+        return apiresponse
     except requests.exceptions.Timeout:
         return APIResponse(error='Request timed out', status=ResponseStatus.TIMEOUT)
     except requests.exceptions.ConnectionError:
@@ -119,95 +137,102 @@ def _make_request(method: str, endpoint: str, timeout: int = 5, **kwargs) -> API
 def get_inventory(url: str = BASE_URL, timeout: int = 5) -> APIResponse:
     """
     Make a request to get a list of inventory items.
+    If successful, the returned APIResponse's model will be set to a List[ItemResponse]
     :param url: The URL to make the API request.
     :param timeout: The timeout in seconds to make the API request.
     :return: APIResponse object representing the API response.
     """
-    return _make_request(method='GET', endpoint=f'{url}/items', timeout=timeout)
+    return _make_request(expected_response_model=List[ItemResponse], method='GET', endpoint=f'{url}/items',
+                         timeout=timeout)
 
 
 def get_logs(url: str = BASE_URL, timeout: int = 5) -> APIResponse:
     """
     Make a request to get a list of all logs.
+    If successful, the returned APIResponse's model will be set to a List[TransactionResponse]
     :param url: The URL to make the API request.
     :param timeout: The timeout in seconds to make the API request.
     :return: APIResponse object representing the API response.
     """
-    return _make_request(method='GET', endpoint=f'{url}/logs', timeout=timeout)
+    return _make_request(expected_response_model=List[TransactionResponse], method='GET', endpoint=f'{url}/logs',
+                         timeout=timeout)
 
 
 def get_item(item_name: str, url: str = BASE_URL, timeout: int = 5) -> APIResponse:
     """
     Make a request to get a specific item.
+    If successful, the returned APIResponse's model will be set to an ItemResponse
     :param item_name: The name of the item to get.
     :param url: The URL to make the API request.
     :param timeout: The timeout in seconds to make the API request.
     :return: APIResponse object representing the API response.
     """
-    return _make_request(method='GET', endpoint=f'{url}/items/{item_name}', timeout=timeout)
+    return _make_request(expected_response_model=ItemResponse, method='GET', endpoint=f'{url}/items/{item_name}',
+                         timeout=timeout)
 
 
-def restock_item(item_name: str, quantity: int, url: str = BASE_URL, timeout: int = 5) -> APIResponse:
+def restock_item(item: ItemRequest, url: str = BASE_URL, timeout: int = 5) -> APIResponse:
     """
     Make a request to restock a specific item.
-    :param item_name: The name of the item to restock.
-    :param quantity: The number of items to restock.
+    If successful, the returned APIResponse's model will be set to a MessageResponse
+    :param item: Model containing item to restock.
     :param url: The URL to make the API request.
     :param timeout: The timeout in seconds to make the API request.
     :return: APIResponse object representing the API response.
     """
-    return _make_request(method='POST', endpoint=f'{url}/restock', timeout=timeout,
-                         json={'name': item_name, 'quantity': quantity})
+    return _make_request(expected_response_model=MessageResponse, method='POST', endpoint=f'{url}/restock',
+                         timeout=timeout, json=item.model_dump())
 
 
-def checkout_item(item_name: str, quantity: int, url: str = BASE_URL, timeout: int = 5) -> APIResponse:
+def checkout_item(item: ItemRequest, url: str = BASE_URL, timeout: int = 5) -> APIResponse:
     """
     Make a request to check out a specific item.
-    :param item_name: Item to checkout.
-    :param quantity: Quantity to checkout.
+    If successful, the returned APIResponse's model will be set to a MessageResponse
+    :param item: Model containing item to checkout.
     :param url: The URL to make the API request.
     :param timeout: The timeout in seconds to make the API request.
     :return: APIResponse object representing the API response.
     """
-    return _make_request(method='POST', endpoint=f'{url}/checkout', timeout=timeout,
-                         json={'name': item_name, 'quantity': quantity})
+    return _make_request(expected_response_model=MessageResponse, method='POST', endpoint=f'{url}/checkout',
+                         timeout=timeout, json=item.model_dump())
 
 
-def checkout_items(items: list[dict], url: str = BASE_URL, timeout: int = 5) -> APIResponse:
+def checkout_items(items: MultiItemRequest, url: str = BASE_URL, timeout: int = 5) -> APIResponse:
     """
     Make a request to check out multiple items.
-    :param items: A list of dicts each containing 'name': str and 'quantity': int pairings representing the items
-                    to check out.
+    If successful, the returned APIResponse's model will be set to a MessageResponse
+    :param items: Model containing items to checkout.
     :param url: The URL to make the API request.
     :param timeout: The timeout in seconds to make the API request.
     :return: APIResponse object representing the API response
     """
 
-    return _make_request(method='POST', endpoint=f'{url}/checkout', timeout=timeout, json=items)
+    return _make_request(expected_response_model=MessageResponse, method='POST', endpoint=f'{url}/checkout',
+                         timeout=timeout, json=items.model_dump())
 
 
-def create_item(item_name: str, initial_stock: int, unit_weight: int, price: int, url: str = BASE_URL,
+def create_item(item: CreateRequest, url: str = BASE_URL,
                 timeout: int = 5) -> APIResponse:
     """
     Make a request to create a new item.
-    :param item_name: The name of the new item.
-    :param initial_stock: The initial stock of the new item.
-    :param unit_weight: Weight per unit, or the amount per unit for the new item.
-    :param price: Price per unit for the new item.
+    If successful, the returned APIResponse's model will be set to a MessageResponse
+    :param item: Model containing item to create.
     :param url: The URL to make the API request.
     :param timeout: The timeout in seconds to make the API request.
     :return: APIResponse object representing the API response.
     """
-    return _make_request(method='POST', endpoint=f'{url}/create', timeout=timeout,
-                         json={'name': item_name, 'initial_stock': initial_stock, 'unit_weight': unit_weight,
-                               'price': price})
+    return _make_request(expected_response_model=MessageResponse, method='POST', endpoint=f'{url}/create',
+                         timeout=timeout,
+                         json=item.model_dump())
 
 
 def delete_all_items(url: str = BASE_URL, timeout: int = 5) -> APIResponse:
     """
     Deletes all items from inventory.
+    If successful, the returned APIResponse's model will be set to a MessageResponse
     :param url: The URL to make the API request.
     :param timeout: The timeout in seconds to make the API request.
     :return: The APIResponse object representing the API response.
     """
-    return _make_request(method='DELETE', endpoint=f'{url}/delete_all', timeout=timeout)
+    return _make_request(expected_response_model=MessageResponse, method='DELETE', endpoint=f'{url}/delete_all',
+                         timeout=timeout)
