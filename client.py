@@ -22,16 +22,13 @@ if __name__ == '__main__':
                         help='Quantity (required for restock/checkout (single-item)/create)')
     parser.add_argument('--names', type=str, help='Item name list (required for checkout (multi-item)')
     parser.add_argument('--quantities', type=str, help='Quantity list (required for checkout (multi-item)')
-    parser.add_argument('--unit_weight', '--weight', '-weight', '-uw', type=int,
-                        help='Weight per unit (required for create)')
-    parser.add_argument('--price', '-price', '-p', type=int, help='Price per unit (required for create)')
+    parser.add_argument('--max-checkout', '-m', type=int,
+                        help='Max amount that can be checked out at a time (required for create)')
     parser.add_argument('--local', '-l', action='store_true')
     parser.add_argument('--id', '-i', help='Student ID for use in checkout', type=str)
-    parser.add_argument('--supplier', '-s', type=str, help='Supplier name for use in create')
     args = parser.parse_args()
 
     url = 'http://127.0.0.1:8001' if args.local else BASE_URL
-    supplier = args.supplier if args.supplier else None
     student_id = args.id if args.id else None
 
     if args.action == 'inventory':
@@ -53,7 +50,7 @@ if __name__ == '__main__':
                 exit()
 
             if len(names) != len(quantities):
-                print('Error: --names and --quantities must both be comma seperated lists s the same length')
+                print('Error: --names and --quantities must both be comma seperated lists of the same length')
             else:
                 items = []
                 for name, quantity in zip(names, quantities):
@@ -73,9 +70,9 @@ if __name__ == '__main__':
         else:
             print(get_item(args.name, url=url).formatted_string())
     elif args.action == 'create':
-        if not args.name or args.quantity is None or args.unit_weight is None or args.price is None:
-            print('Error: --name, --quantity, --unit_weight and --price are required for creation.')
+        if not args.name or args.quantity is None or args.max_checkout is None:
+            print('Error: --name, --quantity, and --max-checkout are required for creation.')
         else:
             print(create_item(
-                item=CreateRequest(name=args.name, initial_stock=args.quantity, unit_weight=args.unit_weight,
-                                   price=args.price, supplier=supplier), url=url).formatted_string())
+                item=CreateRequest(name=args.name, initial_stock=args.quantity, max_checkout=args.max_checkout),
+                url=url).formatted_string())
