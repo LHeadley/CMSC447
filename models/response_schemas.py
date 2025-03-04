@@ -8,11 +8,10 @@ class ItemResponse(BaseModel):
     """
     Model representing an item returned by the /item endpoint.
     """
+    id: int
     name: str
-    unit_weight: int
-    price: int
     stock: int
-    supplier: Optional[str]
+    max_checkout: int
 
 
 class TransactionItemResponse(BaseModel):
