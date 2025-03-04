@@ -1,5 +1,5 @@
 import datetime
-from typing import Type, List, Union
+from typing import List, Union
 
 from fastapi import FastAPI, Depends, Response
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, func
@@ -34,10 +34,8 @@ class Item(Base):
 
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False, unique=True)
-    unit_weight = Column(Integer, nullable=False)  # weight/quantity per unit
-    price = Column(Integer, nullable=False)  # price per unit
     stock = Column(Integer, default=0)
-    supplier = Column(String)
+    max_checkout = Column(Integer)
 
 
 class Transaction(Base):
@@ -74,7 +72,7 @@ def delete_all_items(db: Session = Depends(get_db)):
     db.query(Item).delete()
     db.query(TransactionItem).delete()
     db.commit()
-    return {'message': 'All items deleted from inventory.'}
+    return MessageResponse(message='All items have been deleted.')
 
 
 @app.get('/items', response_model=list[ItemResponse], responses={
@@ -83,17 +81,18 @@ def delete_all_items(db: Session = Depends(get_db)):
         'content': {
             'application/json': {
                 'example': [
-                    {'name': 'bar', 'unit_weight': 1, 'price': 100, 'stock': 10},
-                    {'name': 'foo', 'unit_weight': 5, 'price': 10, 'stock': 1},
-                    {'name': 'baz', 'unit_weight': 1, 'price': 50, 'stock': 0},
+                    {'name': 'bar', 'stock': 10, 'max_checkout': 10},
+                    {'name': 'foo', 'stock': 1, 'max_checkout': 10},
+                    {'name': 'baz', 'stock': 0, 'max_checkout': 10},
                 ]
             }
         }
     }
 })
-def get_items(db: Session = Depends(get_db)) -> list[Type[Item]]:
+def get_items(db: Session = Depends(get_db)) -> list[ItemResponse]:
     """Fetch all items in inventory."""
-    return db.query(Item).all()
+    return [ItemResponse(id=row.id, name=row.name, stock=row.stock, max_checkout=row.max_checkout)
+            for row in db.query(Item).all()]
 
 
 @app.get('/items/{item_name}', response_model=ItemResponse, responses={
@@ -101,7 +100,7 @@ def get_items(db: Session = Depends(get_db)) -> list[Type[Item]]:
         'description': 'Item requested by name',
         'content': {
             'application/json': {
-                'example': {'name': 'bar', 'unit_weight': 1, 'price': 100, 'stock': 10}
+                'example': {'id': 1, 'name': 'bar', 'stock': 10, 'max_checkout': 5},
             }
         }
     },
@@ -113,7 +112,24 @@ def get_item(item_name: str, db: Session = Depends(get_db)):
     if not item:
         return JSONResponse(status_code=404, content={'message': 'Item not found.'})
 
-    return item
+    return ItemResponse(id=item.id, name=item.name, stock=item.stock, max_checkout=item.max_checkout)
+
+
+@app.delete('/items/{item_name}', response_model=MessageResponse, responses={
+    200: {
+        'model': MessageResponse,
+        'description': 'Item deleted successfully',
+    },
+    **RESPONSE_404
+})
+def delete_item(item_name: str, db: Session = Depends(get_db)):
+    """Deletes item from inventory"""
+    item = db.query(Item).filter_by(name=item_name).first()
+    if not item:
+        return JSONResponse(status_code=404, content={'message': 'Item not found.'})
+    db.delete(item)
+    db.commit()
+    return MessageResponse(message='Item deleted successfully.')
 
 
 @app.post('/create', status_code=201, response_model=MessageResponse, responses={
@@ -131,18 +147,21 @@ def create_item(request: CreateRequest, response: Response, db: Session = Depend
     if db.query(Item).filter_by(name=request.name).first():
         return JSONResponse(status_code=409, content={'message': 'Item with the given name already exists.'})
 
-    item = Item(name=request.name, unit_weight=request.unit_weight, price=request.price, stock=request.initial_stock,
-                supplier=request.supplier)
+    item = Item(name=request.name, stock=request.initial_stock, max_checkout=request.max_checkout)
     db.add(item)
     db.commit()
     response.headers['Location'] = f'/items/{item.name}'
-    return {'message': f'Created item {item.name} with an initial stock of {item.stock}'}
+    return MessageResponse(message=f'Created item {item.name} with an initial stock of {item.stock}')
 
 
 @app.post('/checkout', response_model=MessageResponse, responses={
     200: {
         'model': MessageResponse,
         'description': 'Item(s) checked out successfully.'
+    },
+    400: {
+        'model': MessageResponse,
+        'description': 'Attempted to checkout more than the maximum allowed.'
     },
     409: {
         'model': MessageResponse,
@@ -160,16 +179,23 @@ def checkout_item(request: Union[ItemRequest, MultiItemRequest], db: Session = D
 
     not_found = []
     insufficient_stock = []
+    over_max = []
     for item_request in multi_request.items:
         item = db.query(Item).filter_by(name=item_request.name).first()
 
         if not item:
             not_found.append(item_request.name)
+        elif item_request.quantity > item.max_checkout:
+            over_max.append(item_request)
         elif item.stock < item_request.quantity:
             insufficient_stock.append(item_request.name)
 
     if not_found:
         return JSONResponse(status_code=404, content={'message': f'Item(s) {", ".join(not_found)} not found.'})
+
+    if over_max:
+        return JSONResponse(status_code=400, content={
+            'message': f'Attempted to checkout more than the max quantity allowed for items(s) {", ".join(over_max)}.'})
 
     if insufficient_stock:
         return JSONResponse(status_code=409,
@@ -181,7 +207,7 @@ def checkout_item(request: Union[ItemRequest, MultiItemRequest], db: Session = D
     log_action(db, ActionTypeModel.CHECKOUT, items=multi_request)
     db.commit()
 
-    return {'message': 'Checked out items successfully.'}
+    return MessageResponse(message='Checked out items successfully.')
 
 
 @app.post('/restock', response_model=MessageResponse, responses={
@@ -203,7 +229,7 @@ def restock_item(request: ItemRequest, db: Session = Depends(get_db)):
     log_action(db, action=ActionTypeModel.RESTOCK, items=MultiItemRequest(items=[request]))
     db.commit()
 
-    return {'message': f'Restocked {request.quantity} {request.name}(s).'}
+    return MessageResponse(message=f'Restocked {request.quantity} {request.name}(s).')
 
 
 @app.get('/logs', response_model=List[TransactionResponse], responses={
@@ -234,11 +260,11 @@ def get_logs(db: Session = Depends(get_db), day_of_week: WeekdayModel | int | No
 
     transactions = query.all()
     return [
-        TransactionResponse(transaction_id=getattr(transaction, "id"),
-                            student_id=getattr(transaction, "student_id"),
-                            day_of_week=getattr(transaction, "day_of_week"),
-                            action=getattr(transaction, "action"),
-                            timestamp=getattr(transaction, "timestamp"),
+        TransactionResponse(transaction_id=transaction.id,
+                            student_id=transaction.student_id,
+                            day_of_week=transaction.day_of_week,
+                            action=transaction.action,
+                            timestamp=transaction.timestamp,
                             items=[TransactionItemResponse(item_name=item.item_name, item_quantity=item.item_quantity)
                                    for item in transaction.entries])
         for transaction in transactions]

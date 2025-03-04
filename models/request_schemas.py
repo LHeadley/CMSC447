@@ -30,11 +30,8 @@ class CreateRequest(BaseModel):
     Model representing a request to create an item.
     """
     name: str
-    unit_weight: int
-    price: int
     initial_stock: int
-    supplier: Optional[str] = Field(default=None)
-
+    max_checkout: int
 
 class WeekdayModel(str, Enum):
     """
