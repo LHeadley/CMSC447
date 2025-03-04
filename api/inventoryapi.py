@@ -21,6 +21,7 @@ class ResponseStatus(Enum):
     """
     OK = 200
     CREATED = 201
+    BAD_REQUEST = 400
     NOT_FOUND = 404
     CONFLICT = 409
     UNPROCESSABLE_CONTENT = 422
@@ -168,7 +169,7 @@ def get_logs(item_name: str = None, student_id: str = None, weekday: WeekdayMode
     if student_id:
         options.append(f'student_id={student_id}')
     if weekday:
-        options.append(f'weekday={weekday}')
+        options.append(f'day_of_week={weekday}')
     if type:
         options.append(f'action={type}')
 
