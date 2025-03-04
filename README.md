@@ -5,7 +5,7 @@ Clone the repository and run `pip3 install -r requirements.txt` to install all r
 
 # Deployment
 
-Deploy the backend using `uvicorn server:app --reload --port 8001`.
+Deploy the backend using `uvicorn frontend:app --reload --port 8001`.
 
 # CLI Usage
 

@@ -1,4 +1,5 @@
 import datetime
+from contextlib import contextmanager
 from typing import List, Union
 
 from fastapi import FastAPI, Depends, Response
@@ -27,6 +28,9 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+db_context = contextmanager(get_db)
 
 
 class Item(Base):
