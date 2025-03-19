@@ -1,6 +1,6 @@
 from nicegui import APIRouter, ui
 
-from screens.common import show_inventory
+from frontend_app.common import show_inventory
 
 router = APIRouter(prefix='/admin')
 

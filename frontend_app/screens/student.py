@@ -1,6 +1,6 @@
 from nicegui import APIRouter, ui
 
-from screens.common import show_inventory, show_cart
+from frontend_app.common import show_inventory, show_cart
 
 router = APIRouter(prefix='/student')
 

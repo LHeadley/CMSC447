@@ -1,6 +1,6 @@
 from nicegui import ui
 
-from screens.cart import Cart, CartItem
+from frontend_app.cart import Cart, CartItem
 from server import db_context, get_items
 
 

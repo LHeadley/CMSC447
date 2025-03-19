@@ -1,6 +1,6 @@
 from nicegui import ui
 
-from screens import admin, student
+from frontend_app.screens import admin, student
 from server import app
 
 
