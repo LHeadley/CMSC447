@@ -4,7 +4,12 @@ from screens.cart import Cart, CartItem
 from server import db_context, get_items
 
 
-def show_cart(cart_owner: str | None = None):
+def show_cart(cart_owner: str | None = None) -> None:
+    """
+    Creates a cart and displays it.
+    :param cart_owner: The student ID of the cart owner, to be used in checkout.
+    """
+
     def set_max(item_name: str) -> None:
         quantity_select.max = name_max_map.get(item_name, 0)
 
@@ -40,7 +45,10 @@ def show_cart(cart_owner: str | None = None):
     cart.render()
 
 
-def show_inventory():
+def show_inventory() -> None:
+    """
+    Displays all items in the inventory, along with their current stock.
+    """
     with db_context() as db:
         items = get_items(db)
 
