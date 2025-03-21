@@ -1,5 +1,8 @@
+import json
+
 from nicegui import ui
 from pydantic import BaseModel
+from starlette.responses import JSONResponse
 
 from models.request_schemas import ItemRequest, MultiItemRequest
 from models.response_schemas import MessageResponse
@@ -82,9 +85,17 @@ class Cart:
         with db_context() as db:
             result = checkout_item(request=multi_request, db=db)
             if isinstance(result, MessageResponse):
-                print('success')
                 self.rows.clear()
                 self.table.update()
+                with ui.dialog() as dialog, ui.card():
+                    ui.label('Success')
+                    ui.button('Close', on_click=dialog.close)
+            elif isinstance(result, JSONResponse):
+                with ui.dialog() as dialog, ui.card():
+                    ui.label(f'Error {result.status_code}: {json.loads(result.body.decode("utf-8"))["message"]}')
+                    ui.button('Close', on_click=dialog.close)
             else:
-                print('failure')
-
+                with ui.dialog() as dialog, ui.card():
+                    ui.label('Unknown Error')
+                    ui.button('Close', on_click=dialog.close)
+            dialog.open()
