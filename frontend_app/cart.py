@@ -45,7 +45,8 @@ class Cart:
         """
         self.table = ui.table(columns=self.columns, rows=self.rows)
         self.checkout_btn = ui.button('Checkout')
-        self.checkout_btn.on_click(lambda : self.checkout())
+        self.checkout_btn.on_click(lambda: self.checkout())
+
     # TODO: Increment items already in cart instead of adding a new row
     #       Add a button to remove items from the cart
     #       And check items to make sure the cart isn't above the max takeout quantity
@@ -66,7 +67,7 @@ class Cart:
                     break
 
             if not found:
-                 self.rows.append(item.model_dump())
+                self.rows.append(item.model_dump())
 
             if self.table is not None:
                 self.table.update()
@@ -75,13 +76,12 @@ class Cart:
         # convert cart items to item requests
         requests = []
         for item in self.rows:
-
             requests.append(ItemRequest(name=item['name'], quantity=item['quantity']))
 
-        #create multi request from item requests
+        # create multi request from item requests
         multi_request = MultiItemRequest(items=requests, student_id=self.cart_owner)
 
-        #pass multi request to checkout_item function
+        # pass multi request to checkout_item function
         with db_context() as db:
             result = checkout_item(request=multi_request, db=db)
             if isinstance(result, MessageResponse):
