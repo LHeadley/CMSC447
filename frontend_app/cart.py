@@ -93,7 +93,10 @@ class Cart:
                         ui.navigate.reload()
 
                     ui.label('Success')
-                    ui.button('Close', on_click=reload)
+                    ui.button('Close', on_click=dialog.close)
+
+                dialog.on('hide', reload)
+
             elif isinstance(result, JSONResponse):
                 with ui.dialog() as dialog, ui.card():
                     ui.label(f'Error {result.status_code}: {json.loads(result.body.decode("utf-8"))["message"]}')
