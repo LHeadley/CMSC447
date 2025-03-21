@@ -40,7 +40,8 @@ def show_cart(cart_owner: str | None = None) -> None:
         add_btn.bind_enabled_from(quantity_select)
 
         add_btn.on_click(lambda: cart.add_to_cart(
-            CartItem(id=name_id_map[name.value], name=name.value, quantity=int(quantity_select.value))))
+            CartItem(id=name_id_map[name.value], name=name.value, quantity=int(quantity_select.value),
+                     max_checkout=name_max_map[name.value])))
 
     cart.render()
 

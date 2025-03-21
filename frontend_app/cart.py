@@ -1,6 +1,10 @@
 from nicegui import ui
 from pydantic import BaseModel
 
+from models.request_schemas import ItemRequest, MultiItemRequest
+from models.response_schemas import MessageResponse
+from server import checkout_item, db_context
+
 
 class CartItem(BaseModel):
     """
@@ -9,6 +13,7 @@ class CartItem(BaseModel):
     id: int
     name: str
     quantity: int
+    max_checkout: int
 
 
 class Cart:
@@ -37,7 +42,7 @@ class Cart:
         """
         self.table = ui.table(columns=self.columns, rows=self.rows)
         self.checkout_btn = ui.button('Checkout')
-
+        self.checkout_btn.on_click(lambda : self.checkout())
     # TODO: Increment items already in cart instead of adding a new row
     #       Add a button to remove items from the cart
     #       And check items to make sure the cart isn't above the max takeout quantity
@@ -47,6 +52,39 @@ class Cart:
         :param item: The item to add.
         """
         if item.quantity > 0:
-            self.rows.append(item.model_dump())
+
+            found = False
+            for row in self.rows:
+                if row['name'] == item.name:
+                    row['quantity'] += item.quantity
+                    if row['quantity'] > item.max_checkout:
+                        row['quantity'] = item.max_checkout
+                    found = True
+                    break
+
+            if not found:
+                 self.rows.append(item.model_dump())
+
             if self.table is not None:
                 self.table.update()
+
+    def checkout(self):
+        # convert cart items to item requests
+        requests = []
+        for item in self.rows:
+
+            requests.append(ItemRequest(name=item['name'], quantity=item['quantity']))
+
+        #create multi request from item requests
+        multi_request = MultiItemRequest(items=requests, student_id=self.cart_owner)
+
+        #pass multi request to checkout_item function
+        with db_context() as db:
+            result = checkout_item(request=multi_request, db=db)
+            if isinstance(result, MessageResponse):
+                print('success')
+                self.rows.clear()
+                self.table.update()
+            else:
+                print('failure')
+
