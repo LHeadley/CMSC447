@@ -88,8 +88,12 @@ class Cart:
                 self.rows.clear()
                 self.table.update()
                 with ui.dialog() as dialog, ui.card():
+                    def reload():
+                        dialog.close()
+                        ui.navigate.reload()
+
                     ui.label('Success')
-                    ui.button('Close', on_click=dialog.close)
+                    ui.button('Close', on_click=reload)
             elif isinstance(result, JSONResponse):
                 with ui.dialog() as dialog, ui.card():
                     ui.label(f'Error {result.status_code}: {json.loads(result.body.decode("utf-8"))["message"]}')
