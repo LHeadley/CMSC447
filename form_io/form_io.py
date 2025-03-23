@@ -1,4 +1,11 @@
+################################################################################
+# File: form_io.py                                                             #
+#                                                                              #
+# Purpose: Handle order form file import/export to/from the database.          #
+################################################################################
+
 import csv
+import pandas as pd
 
 from api import inventoryapi
 from api.inventoryapi import APIResponse, ResponseStatus
@@ -8,13 +15,22 @@ from models.response_schemas import ItemResponse, TransactionResponse, MessageRe
 from server import app, get_items, db_context
 
 
-# - File input/output -
+# ***********************
+# ** File input/output **
+# ***********************
 
 # file format: first col should be product name, last col quantity (other cols ignored)
 # TODO: throw errors
 # TODO: detect headers
 # TODO: excel .xlsx files
 def read_file(filename):
+    # if excel file
+    if filename.endswith('.xlsx'):
+        data = pd.read_excel(filename, header=None)
+        # extract data from the first and last columns, then convert to list format
+        return data[data.columns[0::len(data.columns)-1]].values.tolist()
+
+    # otherwise treat file as character-separated (CSV)
     with open(filename, 'r', newline='') as csvfile:
         # detect dialect with sample from csvfile
         dialect = csv.Sniffer().sniff(csvfile.read(1024))
@@ -27,24 +43,36 @@ def read_file(filename):
 
     return data
 
-# data format: list of 2-len ['name', quantity] lists 
+
+# data format: list of 2-len ['name', quantity] lists
+# TODO: throw errors
 def write_file(filename, data):
-    
+
+    # if excel extension given
+    if filename.endswith('.xlsx'):
+        dataframe = pd.DataFrame(data, columns = ['Product', 'Stock'])
+        dataframe.to_excel(filename, index=False, header=False)
+        return data
+
+    # otherwise save as comma-separated file
     with open(filename, 'w', newline='') as csvfile:
         fwriter  = csv.writer(csvfile, delimiter=',', dialect='excel');
 
         for row in data:
             fwriter.writerow(row);
-                
-    return data;
+
+        return data
 
 
-# - Database interaction -
+# **************************
+# ** Database interaction **
+# **************************
 
 # TODO: throw errors
+# TODO: better handle db response codes
 def db_import(url, filename):
     # get relevant data from file
-    data = form_io_read_file(filename)
+    data = read_file(filename)
     
     # put data into DB
     with db_context() as db:
