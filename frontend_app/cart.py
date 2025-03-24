@@ -47,16 +47,12 @@ class Cart:
         self.checkout_btn = ui.button('Checkout')
         self.checkout_btn.on_click(lambda: self.checkout())
 
-    # TODO: Increment items already in cart instead of adding a new row
-    #       Add a button to remove items from the cart
-    #       And check items to make sure the cart isn't above the max takeout quantity
     def add_to_cart(self, item: CartItem) -> None:
         """
         Adds an item to the cart. If the cart has already been rendered, it will be updated.
         :param item: The item to add.
         """
         if item.quantity > 0:
-
             found = False
             for row in self.rows:
                 if row['name'] == item.name:
