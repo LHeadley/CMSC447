@@ -2,8 +2,8 @@
 # File: test_form_io.py                                                        #
 #                                                                              #
 # Purpose: Test functionality of the form_io module.                           #
-# Remember to start server, update PYTHON_BIN, and set the .env file as        #
-# appropriate. DO NOT USE ON PRODUCTION DATABASE.                              #
+# Remember to start server and set the .env file as appropriate.               #
+# DO NOT USE ON PRODUCTION DATABASE.                                           #
 ################################################################################
 
 import os
@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 from form_io import form_io
 
 # path to the python binary you are using
-PYTHON_BIN='~/pyenv/bin/python3'
+PYTHON_BIN = sys.executable
 
 # update .env to the url & port you are using to test
 load_dotenv()
