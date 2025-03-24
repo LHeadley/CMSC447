@@ -6,8 +6,9 @@
 # appropriate. DO NOT USE ON PRODUCTION DATABASE.                              #
 ################################################################################
 
-import sys
 import os
+import sys
+
 from dotenv import load_dotenv
 
 from form_io import form_io
@@ -19,7 +20,7 @@ PYTHON_BIN='~/pyenv/bin/python3'
 load_dotenv()
 test_url = os.getenv('INVENTORY_API_URL', 'http://127.0.0.1:8001')
 
-# name of the csv to read (can detect delimeters)
+# name of the csv to read (can detect delimiters)
 CSV_EXAMPLE = 'form_io/example.csv'
 XLSX_EXAMPLE = 'form_io/example.xlsx'
 CSV_EXPORT = 'form_io/export.csv'
@@ -29,7 +30,8 @@ print("================= SETTING UP ======================")
 # THIS WILL CLEAR THE DATABASE
 print("Clearing existing database...")
 ret = os.system(f'{PYTHON_BIN} client.py delete_all')
-if (ret == 0): print(" Done")
+if ret == 0:
+    print(" Done")
 else: sys.exit("!! Error clearing the database")
 
 
@@ -40,7 +42,8 @@ print(form_io.db_import(test_url, CSV_EXAMPLE))
 print("================= SETTING UP ======================")
 print("Clearing existing database...")
 ret = os.system(f'{PYTHON_BIN} client.py delete_all')
-if (ret == 0): print(" Done")
+if ret == 0:
+    print(" Done")
 else: sys.exit("!! Error clearing the database")
 
 print("\n============= IMPORT EXAMPLE XLSX ===============")
