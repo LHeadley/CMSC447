@@ -68,4 +68,5 @@ def show_inventory() -> None:
                 {'name': 'max_checkout', 'label': 'Max Checkout', 'field': 'max_checkout'},
             ],
             rows=[item.model_dump() for item in items],
+            pagination=5
         )
