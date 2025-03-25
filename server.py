@@ -221,19 +221,31 @@ def checkout_item(request: Union[ItemRequest, MultiItemRequest], db: Session = D
     },
     **RESPONSE_404
 })
-def restock_item(request: ItemRequest, db: Session = Depends(get_db)):
+def restock_item(request: Union[ItemRequest, MultiItemRequest], db: Session = Depends(get_db)):
     """Restock an item in inventory."""
-    item = db.query(Item).filter_by(name=request.name).first()
-
-    if item:
-        item.stock += request.quantity
+    multi_request: MultiItemRequest
+    if not isinstance(request, MultiItemRequest):
+        multi_request = MultiItemRequest(student_id=request.student_id, items=[request])
     else:
-        return JSONResponse(status_code=404, content={'message': 'Item not found.'})
+        multi_request = request
 
-    log_action(db, action=ActionTypeModel.RESTOCK, items=MultiItemRequest(items=[request]))
+    not_found = []
+    for item_request in multi_request.items:
+        item = db.query(Item).filter_by(name=item_request.name).first()
+
+        if not item:
+            not_found.append(item_request.name)
+
+    if not_found:
+        return JSONResponse(status_code=404, content={'message': f'Item(s) {", ".join(not_found)} not found.'})
+
+    for item_request in multi_request.items:
+        db.query(Item).filter_by(name=item_request.name).first().stock += item_request.quantity
+
+    log_action(db, action=ActionTypeModel.RESTOCK, items=multi_request)
     db.commit()
 
-    return MessageResponse(message=f'Restocked {request.quantity} {request.name}(s).')
+    return MessageResponse(message=f'Restocked items successfully.')
 
 
 @app.get('/logs', response_model=List[TransactionResponse], responses={
