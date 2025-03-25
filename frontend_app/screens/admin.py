@@ -1,5 +1,6 @@
 from nicegui import APIRouter, ui
 
+from frontend_app.analytics import AnalyticsRequest
 from frontend_app.common import show_inventory
 
 router = APIRouter(prefix='/admin')
@@ -11,3 +12,5 @@ def admin_page():
     ui.page_title('Admin | Retriever Essentials')
     ui.label('Admin Dashboard')
     show_inventory()
+    analytics = AnalyticsRequest()
+    analytics.render()
