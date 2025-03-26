@@ -254,9 +254,13 @@ def restock_item(request: Union[ItemRequest, MultiItemRequest], db: Session = De
         'description': 'The list of all transactions'
     }
 })
-def get_logs(db: Session = Depends(get_db), day_of_week: WeekdayModel | int | None = None,
+def get_logs(db: Session = Depends(get_db),
+             day_of_week: WeekdayModel | int | None = None,
              student_id: str | None = None,
-             item_name: str | None = None, action: ActionTypeModel | None = None) -> list[TransactionResponse]:
+             item_name: str | None = None,
+             start_date: datetime.date | None = None,
+             end_date: datetime.date | None = None,
+             action: ActionTypeModel | None = None) -> list[TransactionResponse]:
     """Fetch all action logs."""
     query = db.query(Transaction)
 
@@ -273,6 +277,10 @@ def get_logs(db: Session = Depends(get_db), day_of_week: WeekdayModel | int | No
         query = query.filter_by(action=action)
     if item_name is not None:
         query = query.filter(Transaction.entries.any(item_name=item_name))
+    if start_date is not None:
+        query = query.filter(Transaction.timestamp >= start_date)
+    if end_date is not None:
+        query = query.filter(Transaction.timestamp <= end_date)
 
     transactions = query.all()
     return [
