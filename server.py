@@ -5,7 +5,7 @@ from typing import List, Union
 from fastapi import FastAPI, Depends, Response
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, func
 from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, relationship
+from sqlalchemy.orm import Session, relationship, Query
 from sqlalchemy.orm import sessionmaker, declarative_base
 from starlette.responses import JSONResponse
 
@@ -53,7 +53,7 @@ class Transaction(Base):
                              datetime.datetime.today().weekday()])
     student_id = Column(String, nullable=True)
 
-    entries = relationship('TransactionItem', back_populates='transaction', cascade='all, delete-orphan')
+    entries = relationship('TransactionItem', back_populates='transaction', cascade='all')
 
 
 class TransactionItem(Base):
@@ -73,8 +73,8 @@ Base.metadata.create_all(engine)
 @app.delete('/delete_all', response_model=MessageResponse)
 def delete_all_items(db: Session = Depends(get_db)):
     """Delete all items from the inventory and clears all logs."""
-    db.query(Item).delete()
-    db.query(TransactionItem).delete()
+    items = db.query(Item)
+    _delete_item(db, items)
     db.commit()
     return MessageResponse(message='All items have been deleted.')
 
@@ -128,10 +128,12 @@ def get_item(item_name: str, db: Session = Depends(get_db)):
 })
 def delete_item(item_name: str, db: Session = Depends(get_db)):
     """Deletes item from inventory"""
-    item = db.query(Item).filter_by(name=item_name).first()
+    query = db.query(Item).filter_by(name=item_name)
+    item = query.first()
     if not item:
         return JSONResponse(status_code=404, content={'message': 'Item not found.'})
-    db.delete(item)
+
+    _delete_item(db, query)
     db.commit()
     return MessageResponse(message='Item deleted successfully.')
 
@@ -292,6 +294,20 @@ def get_logs(db: Session = Depends(get_db),
                             items=[TransactionItemResponse(item_name=item.item_name, item_quantity=item.item_quantity)
                                    for item in transaction.entries])
         for transaction in transactions]
+
+
+def _delete_item(db: Session, query: Query[Item]):
+    """
+    Given an item query, deletes all items and updates all transaction items (logs) that reference the item.
+    :param db: The database session
+    :param query: The query to delete items
+    """
+    items = query.all()
+    for item in items:
+        db.query(TransactionItem).filter_by(item_name=item.name).update(
+            {TransactionItem.item_name: f'[DELETED] {item.name}'})
+
+    query.delete()
 
 
 def log_action(db: Session, action: ActionTypeModel, items: MultiItemRequest):
