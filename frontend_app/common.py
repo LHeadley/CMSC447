@@ -4,7 +4,7 @@ from frontend_app.cart import Cart, CartItem
 from server import db_context, get_items
 
 
-def show_cart(cart_owner: str | None = None) -> None:
+def show_cart(cart_owner: str | None = None, is_admin = False) -> None:
     """
     Creates a cart and displays it.
     :param cart_owner: The student ID of the cart owner, to be used in checkout.
