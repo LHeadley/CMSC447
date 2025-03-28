@@ -19,7 +19,7 @@ engine = create_engine(DATABASE_URL, echo=True)  # echo=True logs SQL queries
 SessionLocal = sessionmaker(bind=engine)
 Base = declarative_base()
 
-app = FastAPI(root_path='/dev')
+app = FastAPI()
 
 
 def get_db():
