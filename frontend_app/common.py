@@ -53,12 +53,20 @@ def show_inventory() -> None:
     with db_context() as db:
         items = get_items(db)
 
-    ui.table(
-        columns=[
-            {'id': 'id', 'label': 'ID', 'field': 'id'},
-            {'name': 'name', 'label': 'Name', 'field': 'name'},
-            {'name': 'stock', 'label': 'Stock', 'field': 'stock'},
-            {'name': 'max_checkout', 'label': 'Max Checkout', 'field': 'max_checkout'},
-        ],
-        rows=[item.model_dump() for item in items]
-    )
+    def swap_toggle(visible: bool):
+        toggle.text = 'Hide Inventory' if visible else 'Show Inventory'
+
+    toggle = ui.expansion(text='Hide Inventory', value=True)
+    toggle.on_value_change(lambda e: swap_toggle(e.value))
+
+    with toggle:
+        ui.table(
+            columns=[
+                {'id': 'id', 'label': 'ID', 'field': 'id'},
+                {'name': 'name', 'label': 'Name', 'field': 'name'},
+                {'name': 'stock', 'label': 'Stock', 'field': 'stock'},
+                {'name': 'max_checkout', 'label': 'Max Checkout', 'field': 'max_checkout'},
+            ],
+            rows=[item.model_dump() for item in items],
+            pagination=5
+        )
