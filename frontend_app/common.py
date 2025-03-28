@@ -16,7 +16,8 @@ def show_cart(cart_owner: str | None = None, is_admin = False) -> None:
 
     with db_context() as db:
         items = get_items(db)
-    name_max_map = {item.name: item.max_checkout for item in items}
+    if not is_admin: name_max_map = {item.name: item.max_checkout for item in items}
+    if is_admin: name_max_map = {item.name: 16384 for item in items}
     name_id_map = {item.name: item.id for item in items}
     if not is_admin: cart = Cart(cart_owner=cart_owner)
     if is_admin: cart = AdminCart(cart_owner=cart_owner)
@@ -37,6 +38,7 @@ def show_cart(cart_owner: str | None = None, is_admin = False) -> None:
         quantity_select.bind_enabled_from(name, 'error', lambda e: e is None)
         # and sets the max quantity to the max checkout quantity of the item typed in
         name.on_value_change(lambda e: set_max(e.value))
+
 
         add_btn = ui.button('Add to Cart')
         add_btn.bind_enabled_from(quantity_select)
