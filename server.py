@@ -5,7 +5,7 @@ from typing import List, Union
 from fastapi import FastAPI, Depends, Response
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, func
 from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, relationship
+from sqlalchemy.orm import Session, relationship, Query
 from sqlalchemy.orm import sessionmaker, declarative_base
 from starlette.responses import JSONResponse
 
@@ -19,7 +19,7 @@ engine = create_engine(DATABASE_URL, echo=True)  # echo=True logs SQL queries
 SessionLocal = sessionmaker(bind=engine)
 Base = declarative_base()
 
-app = FastAPI(root_path='/dev')
+app = FastAPI()
 
 
 def get_db():
@@ -53,7 +53,7 @@ class Transaction(Base):
                              datetime.datetime.today().weekday()])
     student_id = Column(String, nullable=True)
 
-    entries = relationship('TransactionItem', back_populates='transaction', cascade='all, delete-orphan')
+    entries = relationship('TransactionItem', back_populates='transaction', cascade='all')
 
 
 class TransactionItem(Base):
@@ -73,8 +73,8 @@ Base.metadata.create_all(engine)
 @app.delete('/delete_all', response_model=MessageResponse)
 def delete_all_items(db: Session = Depends(get_db)):
     """Delete all items from the inventory and clears all logs."""
-    db.query(Item).delete()
-    db.query(TransactionItem).delete()
+    items = db.query(Item)
+    _delete_item(db, items)
     db.commit()
     return MessageResponse(message='All items have been deleted.')
 
@@ -128,10 +128,12 @@ def get_item(item_name: str, db: Session = Depends(get_db)):
 })
 def delete_item(item_name: str, db: Session = Depends(get_db)):
     """Deletes item from inventory"""
-    item = db.query(Item).filter_by(name=item_name).first()
+    query = db.query(Item).filter_by(name=item_name)
+    item = query.first()
     if not item:
         return JSONResponse(status_code=404, content={'message': 'Item not found.'})
-    db.delete(item)
+
+    _delete_item(db, query)
     db.commit()
     return MessageResponse(message='Item deleted successfully.')
 
@@ -221,19 +223,31 @@ def checkout_item(request: Union[ItemRequest, MultiItemRequest], db: Session = D
     },
     **RESPONSE_404
 })
-def restock_item(request: ItemRequest, db: Session = Depends(get_db)):
+def restock_item(request: Union[ItemRequest, MultiItemRequest], db: Session = Depends(get_db)):
     """Restock an item in inventory."""
-    item = db.query(Item).filter_by(name=request.name).first()
-
-    if item:
-        item.stock += request.quantity
+    multi_request: MultiItemRequest
+    if not isinstance(request, MultiItemRequest):
+        multi_request = MultiItemRequest(student_id=request.student_id, items=[request])
     else:
-        return JSONResponse(status_code=404, content={'message': 'Item not found.'})
+        multi_request = request
 
-    log_action(db, action=ActionTypeModel.RESTOCK, items=MultiItemRequest(items=[request]))
+    not_found = []
+    for item_request in multi_request.items:
+        item = db.query(Item).filter_by(name=item_request.name).first()
+
+        if not item:
+            not_found.append(item_request.name)
+
+    if not_found:
+        return JSONResponse(status_code=404, content={'message': f'Item(s) {", ".join(not_found)} not found.'})
+
+    for item_request in multi_request.items:
+        db.query(Item).filter_by(name=item_request.name).first().stock += item_request.quantity
+
+    log_action(db, action=ActionTypeModel.RESTOCK, items=multi_request)
     db.commit()
 
-    return MessageResponse(message=f'Restocked {request.quantity} {request.name}(s).')
+    return MessageResponse(message=f'Restocked items successfully.')
 
 
 @app.get('/logs', response_model=List[TransactionResponse], responses={
@@ -242,9 +256,13 @@ def restock_item(request: ItemRequest, db: Session = Depends(get_db)):
         'description': 'The list of all transactions'
     }
 })
-def get_logs(db: Session = Depends(get_db), day_of_week: WeekdayModel | int | None = None,
+def get_logs(db: Session = Depends(get_db),
+             day_of_week: WeekdayModel | int | None = None,
              student_id: str | None = None,
-             item_name: str | None = None, action: ActionTypeModel | None = None) -> list[TransactionResponse]:
+             item_name: str | None = None,
+             start_date: datetime.date | None = None,
+             end_date: datetime.date | None = None,
+             action: ActionTypeModel | None = None) -> list[TransactionResponse]:
     """Fetch all action logs."""
     query = db.query(Transaction)
 
@@ -261,6 +279,10 @@ def get_logs(db: Session = Depends(get_db), day_of_week: WeekdayModel | int | No
         query = query.filter_by(action=action)
     if item_name is not None:
         query = query.filter(Transaction.entries.any(item_name=item_name))
+    if start_date is not None:
+        query = query.filter(Transaction.timestamp >= start_date)
+    if end_date is not None:
+        query = query.filter(Transaction.timestamp <= end_date)
 
     transactions = query.all()
     return [
@@ -272,6 +294,20 @@ def get_logs(db: Session = Depends(get_db), day_of_week: WeekdayModel | int | No
                             items=[TransactionItemResponse(item_name=item.item_name, item_quantity=item.item_quantity)
                                    for item in transaction.entries])
         for transaction in transactions]
+
+
+def _delete_item(db: Session, query: Query[Item]):
+    """
+    Given an item query, deletes all items and updates all transaction items (logs) that reference the item.
+    :param db: The database session
+    :param query: The query to delete items
+    """
+    items = query.all()
+    for item in items:
+        db.query(TransactionItem).filter_by(item_name=item.name).update(
+            {TransactionItem.item_name: f'[DELETED] {item.name}'})
+
+    query.delete()
 
 
 def log_action(db: Session, action: ActionTypeModel, items: MultiItemRequest):
