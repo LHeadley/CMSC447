@@ -1,5 +1,6 @@
 from nicegui import ui
 
+from frontend_app.admin_cart import AdminCart
 from frontend_app.cart import Cart, CartItem
 from server import db_context, get_items
 
@@ -17,7 +18,8 @@ def show_cart(cart_owner: str | None = None, is_admin = False) -> None:
         items = get_items(db)
     name_max_map = {item.name: item.max_checkout for item in items}
     name_id_map = {item.name: item.id for item in items}
-    cart = Cart(cart_owner=cart_owner)
+    if not is_admin: cart = Cart(cart_owner=cart_owner)
+    if is_admin: cart = AdminCart(cart_owner=cart_owner)
     with ui.row():
         # adds the name text input which checks if each name is actually an item
         name = ui.input(label='Product Name', autocomplete=list(name_max_map.keys()),
@@ -44,6 +46,7 @@ def show_cart(cart_owner: str | None = None, is_admin = False) -> None:
                      max_checkout=name_max_map[name.value])))
 
     cart.render()
+
 
 
 def show_inventory() -> None:
