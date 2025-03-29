@@ -1,10 +1,11 @@
 from nicegui import ui
 
+from frontend_app.admin_cart import AdminCart
 from frontend_app.cart import Cart, CartItem
 from server import db_context, get_items
 
 
-def show_cart(cart_owner: str | None = None) -> None:
+def show_cart(cart_owner: str | None = None, is_admin = False) -> None:
     """
     Creates a cart and displays it.
     :param cart_owner: The student ID of the cart owner, to be used in checkout.
@@ -15,9 +16,11 @@ def show_cart(cart_owner: str | None = None) -> None:
 
     with db_context() as db:
         items = get_items(db)
-    name_max_map = {item.name: item.max_checkout for item in items}
+    if not is_admin: name_max_map = {item.name: item.max_checkout for item in items}
+    if is_admin: name_max_map = {item.name: 16384 for item in items}
     name_id_map = {item.name: item.id for item in items}
-    cart = Cart(cart_owner=cart_owner)
+    if not is_admin: cart = Cart(cart_owner=cart_owner)
+    if is_admin: cart = AdminCart(cart_owner=cart_owner)
     with ui.row():
         # adds the name text input which checks if each name is actually an item
         name = ui.input(label='Product Name', autocomplete=list(name_max_map.keys()),
@@ -36,6 +39,7 @@ def show_cart(cart_owner: str | None = None) -> None:
         # and sets the max quantity to the max checkout quantity of the item typed in
         name.on_value_change(lambda e: set_max(e.value))
 
+
         add_btn = ui.button('Add to Cart')
         add_btn.bind_enabled_from(quantity_select)
 
@@ -44,6 +48,7 @@ def show_cart(cart_owner: str | None = None) -> None:
                      max_checkout=name_max_map[name.value])))
 
     cart.render()
+
 
 
 def show_inventory() -> None:

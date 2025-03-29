@@ -1,6 +1,6 @@
 from nicegui import APIRouter, ui
 
-from frontend_app.common import show_inventory
+from frontend_app.common import show_inventory, show_cart
 
 router = APIRouter(prefix='/admin')
 
@@ -11,3 +11,5 @@ def admin_page():
     ui.page_title('Admin | Retriever Essentials')
     ui.label('Admin Dashboard')
     show_inventory()
+    show_cart('admin', True)
+
