@@ -1,7 +1,11 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from enum import Enum
 
 from nicegui import ui
+
+from models.request_schemas import ActionTypeModel
+from models.response_schemas import TransactionResponse
+from server import db_context, get_logs
 
 
 class ReportType(Enum):
@@ -9,8 +13,127 @@ class ReportType(Enum):
     MOST_POPULAR_QUANTITY = "Popular Items (Quantity)"
     LEAST_POPULAR = "Least Popular"
     PEAK_DAYS = "Peak Days"
-    NUM_OF_CHECKOUTS = "Number of Checkouts"
     SPECIFIC_ITEM = "Specific Item"
+
+
+class ReportResult:
+    """
+    Class for displaying the results of a report.
+    """
+    report_type: ReportType
+    data: list[TransactionResponse]
+    item_name: str | None
+    start_date: date | None
+    end_date: date | None
+
+    def __init__(self, report_type: ReportType,
+                 data: list[TransactionResponse],
+                 item_name: str | None = None,
+                 start_date: date | None = None,
+                 end_date: date | None = None) -> None:
+        self.report_type = report_type
+        self.data = data
+        self.item_name = item_name
+        self.start_date = start_date
+        self.end_date = end_date
+
+    def render(self) -> None:
+        """
+        Render the report results.
+        """
+        ui.label(f'Showing {self.report_type.value} results from '
+                 f'{self.start_date.isoformat() if self.start_date is not None else "ALL TIME "}'
+                 f'{"to " + self.end_date.isoformat() if self.end_date is not None else ""}')
+
+        if len(self.data) == 0:
+            ui.label('No logs found for this query')
+            return
+
+        for log in self.data:
+            print(log.model_dump())
+
+        if self.report_type == ReportType.MOST_POPULAR_FREQUENCY or self.report_type == ReportType.LEAST_POPULAR:
+            # go through each log and count the number of times each item was checked out
+            item_count = {}
+            for log in self.data:
+                for item in log.items:
+                    # if the item is deleted, we don't want to count it
+                    if item.item_name.startswith('[DELETED]'):
+                        continue
+
+                    if item.item_name not in item_count:
+                        item_count[item.item_name] = 0
+                    item_count[item.item_name] += 1
+
+            print(item_count)
+            # sort the items by the number of times they were checked out
+            sorted_items = sorted(item_count.items(), key=lambda x: x[1],
+                                  reverse=self.report_type == ReportType.MOST_POPULAR_FREQUENCY)
+            with ui.row():
+                ui.table(columns=[{'id': 'item_name', 'label': 'Item Name', 'field': 'item_name'},
+                                  {'id': 'frequency', 'label': 'Frequency', 'field': 'frequency'}],
+                         rows=[{'item_name': item[0], 'frequency': item[1]} for item in sorted_items])
+
+        elif self.report_type == ReportType.MOST_POPULAR_QUANTITY:
+            # go through each log and sum the quantity of each item checked out
+            item_count = {}
+            for log in self.data:
+                for item in log.items:
+                    # if the item is deleted, we don't want to count it
+                    if item.item_name.startswith('[DELETED]'):
+                        continue
+
+                    if item.item_name not in item_count:
+                        item_count[item.item_name] = 0
+                    item_count[item.item_name] += item.item_quantity
+
+            # sort the items by the number of times they were checked out
+            sorted_items = sorted(item_count.items(), key=lambda x: x[1],
+                                  reverse=self.report_type == ReportType.MOST_POPULAR_QUANTITY)
+            ui.table(columns=[{'id': 'item_name', 'label': 'Item Name', 'field': 'item_name'},
+                              {'id': 'quantity', 'label': 'Quantity', 'field': 'quantity'}],
+                     rows=[{'item_name': item[0], 'quantity': item[1]} for item in sorted_items])
+
+        elif self.report_type == ReportType.PEAK_DAYS:
+            # go through each log and count the number of checkouts per day
+            day_count = {}
+            for log in self.data:
+                log_date = log.timestamp.date()
+                if log_date not in day_count:
+                    day_count[log_date] = 0
+                day_count[log_date] += 1
+
+            # sort the days by the number of checkouts
+            sorted_days = sorted(day_count.items(), key=lambda x: x[1], reverse=True)
+            ui.table(columns=[{'id': 'date', 'label': 'Date', 'field': 'date'},
+                              {'id': 'frequency', 'label': 'Frequency', 'field': 'frequency'}],
+                     rows=[{'date': item[0], 'frequency': item[1]} for item in sorted_days])
+        elif self.report_type == ReportType.SPECIFIC_ITEM:
+            # go through each log and count the number of times the item was checked out
+            # and the total quantity checked out
+            # and the dates with the most checkouts
+            item_quantity = 0
+            item_frequency = 0
+            highest_quantity_days = {}
+            for log in self.data:
+                item_frequency += 1
+                if log.timestamp.date() not in highest_quantity_days:
+                    highest_quantity_days[log.timestamp.date()] = 0
+
+                for item in log.items:
+                    if item.item_name != self.item_name:
+                        continue
+
+                    highest_quantity_days[log.timestamp.date()] += item.item_quantity
+                    item_quantity += item.item_quantity
+
+            ui.label(f'Item "{self.item_name}" was involved in {item_frequency} checkouts'
+                     f' with {item_quantity} total being checked out')
+            # sort the days by the number of checkouts
+            sorted_days = sorted(highest_quantity_days.items(), key=lambda x: x[1], reverse=True)
+            ui.table(columns=[{'id': 'date', 'label': 'Date', 'field': 'date'},
+                              {'id': 'quantity', 'label': 'Quantity', 'field': 'quantity'}],
+                     rows=[{'date': item[0], 'quantity': item[1]} for item in sorted_days])
 
 
 class AnalyticsRequest:
@@ -25,7 +148,28 @@ class AnalyticsRequest:
     name_input: ui.input
     report_select: ui.select
 
+    result_container: ui.element
+
     def render(self) -> None:
+        def submit_report():
+            min_date = datetime.fromisoformat(self.min_date_in.value).date() if self.min_date_in.value != '' else None
+            max_date = datetime.fromisoformat(self.max_date_in.value).date() if self.max_date_in.value != '' else None
+            report_type = ReportType(self.report_select.value)
+            item_name = self.name_input.value if report_type == ReportType.SPECIFIC_ITEM else None
+
+            with db_context() as db:
+                logs = get_logs(db=db,
+                                action=ActionTypeModel.CHECKOUT,
+                                item_name=item_name,
+                                start_date=min_date,
+                                end_date=max_date)
+                result = ReportResult(report_type=report_type, data=logs, item_name=item_name, start_date=min_date,
+                                      end_date=max_date)
+
+            with self.result_container:
+                ui.separator()
+                result.render()
+
         # if either value changes, we need to make sure we check the validation for both of them
         def validate_both_dates() -> None:
             self.max_date_in.validate()
@@ -54,6 +198,7 @@ class AnalyticsRequest:
             return (value == ReportType.SPECIFIC_ITEM.value and self.name_input.value != '') or (
                     value != ReportType.SPECIFIC_ITEM.value and value in ReportType)
 
+        # create the container for the report results
         # create the date options
         with ui.row():
             self.min_date_in = ui.input('Start Date')
@@ -68,14 +213,14 @@ class AnalyticsRequest:
             self.max_date_in.on_value_change(validate_both_dates)
 
         # create the date selector GUI
-        for date in [self.min_date_in, self.max_date_in]:
-            with date:
+        for selected_date in [self.min_date_in, self.max_date_in]:
+            with selected_date:
                 with ui.menu().props('no-parent-event') as menu:
-                    with ui.date().bind_value(date) as date_value:
+                    with ui.date().bind_value(selected_date) as date_value:
                         date_value.on_value_change(menu.close)
                         with ui.row().classes('justify-end'):
                             ui.button('Close', on_click=menu.close).props('flat')
-                with date.add_slot('append'):
+                with selected_date.add_slot('append'):
                     ui.icon('edit_calendar').on('click', menu.open).classes('cursor-pointer')
 
         # create the buttons to autofill date
@@ -89,7 +234,7 @@ class AnalyticsRequest:
             self.all_time_autofill = ui.button('All Time', on_click=lambda: fill_dates())
 
         with ui.row():
-            self.submit_btn = ui.button('Submit Query', on_click=lambda: self.submit_report())
+            self.submit_btn = ui.button('Submit Query')
             self.report_select = ui.select(label='Select Report Type',
                                            options=[report.value for report in ReportType]).classes('w-40')
 
@@ -107,18 +252,5 @@ class AnalyticsRequest:
             self.name_input.bind_visibility_from(self.report_select, 'value', None,
                                                  value=ReportType.SPECIFIC_ITEM.value)
 
-    def submit_report(self) -> None:
-        # placeholder, for now just display all the selected values
-        min_date = self.min_date_in.value
-        max_date = self.max_date_in.value
-        report_type = ReportType(self.report_select.value)
-        item_name = self.name_input.value if report_type == ReportType.SPECIFIC_ITEM.value else ""
-
-        with ui.dialog() as dialog, ui.card():
-            ui.label(f'Report Type: {report_type.value}')
-            ui.label(f'Querying from'
-                     f' {min_date if min_date != "" else "all time"} {f" to {max_date}" if max_date is not "" else ""}')
-            if report_type == ReportType.SPECIFIC_ITEM:
-                ui.label(f'Item Name: {item_name}')
-            ui.button('Close', on_click=dialog.close)
-        dialog.open()
+        self.submit_btn.on_click(lambda: submit_report())
+        self.result_container = ui.element()
