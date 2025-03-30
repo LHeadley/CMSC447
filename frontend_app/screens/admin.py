@@ -29,14 +29,6 @@ def admin_page():
         ui.label("RESTOCK EXISTING ITEMS")
         ui.space()
 
-        #TODO: this idea, but with an admin version of 'cart'
-        ui.label("CURRENT RESTOCK ORDER:")
-        restockCart = Cart()
-        restockCart.render()
-        restockCart.checkout_btn.text = "Restock"
-        ui.space()
-        #TODO: end todo
-
         # import/export restock order
         with ui.row():
             ui.label("Import: ")
@@ -52,28 +44,6 @@ def admin_page():
             ui.button("Export", on_click=lambda: exportFile(exportChoice.value))
 
         ui.space()
-        # manual item input
-        with ui.row():
-            ui.label("OR input each item manually: ")
-            addBtn = ui.button("Add to Restock Order")
-
-            # item information
-            addID = ui.number("Item ID", value=0)
-            addName = ui.input("Item Name", value="")
-            addAmt = ui.number("Amount In-Stock", value=0)
-            addMax = ui.number("Max Allowed per Checkout", value=0)
-
-            # set restock-button to take info from input fields
-            addBtn.on_click(lambda: addCartItem(restockCart, addID.value, addName.value, addAmt.value, addMax.value))
-            # bind restock-button clickability to valid input; have to bind to all
-            addBtn.bind_enabled_from(addID, "value",
-                                     lambda v: validInput(v, addName.value, addAmt.value, addMax.value))
-            addBtn.bind_enabled_from(addName, "value",
-                                     lambda v: validInput(addID.value, v, addAmt.value, addMax.value))
-            addBtn.bind_enabled_from(addAmt, "value",
-                                     lambda v: validInput(addID.value, addName.value, v, addMax.value))
-            addBtn.bind_enabled_from(addMax, "value",
-                                     lambda v: validInput(addID.value, addName.value, addAmt.value, v))
 
     ### creating; visibility matches switch value ###
     with ui.column().bind_visibility_from(restockChoice, "value"):
