@@ -1,7 +1,6 @@
 from nicegui import APIRouter, ui
 
-from frontend_app.cart import Cart, CartItem  # TODO: change for adminCart
-from frontend_app.common import show_inventory
+from frontend_app.common import show_inventory, show_cart
 
 router = APIRouter(prefix='/admin')
 
@@ -12,23 +11,20 @@ def admin_page():
     ui.page_title('Admin | Retriever Essentials')
     ui.label('Admin Dashboard')
     show_inventory()
+    show_cart('admin', True)
 
-    ui.button("Run Report")
     # TODO: make report button switch to report screen
     with ui.row():
         choice_label = ui.label("CHOICE: ")
         restock_choice = ui.switch()
         # bind label text to the switch's current position
         choice_label.bind_text_from(restock_choice, "value",
-                                 lambda v: "Restocking: " if v==False else "Creating: " )
+                                    lambda v: "Import/Export: " if v == False else "Creating: ")
 
     # creating vs restocking; bind visibility to switch's current position
     ### restocking; visibility opposite switch value ###
     with ui.column().bind_visibility_from(restock_choice, "value",
                                           lambda v: not v):
-        ui.label("RESTOCK EXISTING ITEMS")
-        ui.space()
-
         # import/export restock order
         with ui.row():
             ui.label("Import: ")
@@ -84,13 +80,6 @@ def valid_input(id: int, name: str, amt: int, max: int) -> bool:
         return False
 
     return True
-
-
-def add_cart_item(cart: Cart, id: int, name: str, amt: int, max: int) -> None:
-    # take input information and add an item to the restock cart
-    #TODO: validation
-    item = CartItem(id=id, name=name, quantity=amt, max_checkout=max)
-    cart.add_to_cart(item)
 
 
 def make_item(id: int, name: str, amt: int, max: int):

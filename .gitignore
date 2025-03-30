@@ -1,2 +1,22 @@
-.env
+# DB
 *.db
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environments
+.venv/
+.env/
+venv/
+env/
+
+# Personal environment files
+*.env
+
+# IDE files
+.idea/
+.vscode/
+*.iml
