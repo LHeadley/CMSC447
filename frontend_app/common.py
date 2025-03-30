@@ -5,22 +5,34 @@ from frontend_app.cart import Cart, CartItem
 from server import db_context, get_items
 
 
-def show_cart(cart_owner: str | None = None, is_admin = False) -> None:
+def show_cart(cart_owner: str | None = None, is_admin: bool = False) -> None:
     """
     Creates a cart and displays it.
     :param cart_owner: The student ID of the cart owner, to be used in checkout.
+    :param is_admin: If the cart is an admin cart or not
     """
 
     def set_max(item_name: str) -> None:
-        quantity_select.max = name_max_map.get(item_name, 0)
+
+        if not is_admin:
+            quantity_select.max = name_max_map.get(item_name, 0)
+        elif is_admin:
+            quantity_select.max = float('inf')
+
+
+
 
     with db_context() as db:
         items = get_items(db)
-    if not is_admin: name_max_map = {item.name: item.max_checkout for item in items}
-    if is_admin: name_max_map = {item.name: 16384 for item in items}
+
+    name_max_map = {item.name: item.max_checkout for item in items}
     name_id_map = {item.name: item.id for item in items}
-    if not is_admin: cart = Cart(cart_owner=cart_owner)
-    if is_admin: cart = AdminCart(cart_owner=cart_owner)
+
+    if not is_admin:
+        cart = Cart(cart_owner=cart_owner)
+    elif is_admin:
+        cart = AdminCart(cart_owner=cart_owner)
+
     with ui.row():
         # adds the name text input which checks if each name is actually an item
         name = ui.input(label='Product Name', autocomplete=list(name_max_map.keys()),
@@ -32,7 +44,7 @@ def show_cart(cart_owner: str | None = None, is_admin = False) -> None:
         quantity_select = ui.number(label='Quantity', max=0, min=0, value=0,
                                     validation=lambda quantity:
                                     None if isinstance(quantity, int) or quantity.is_integer()
-                                    else 'Quantity must be an integer')
+                                    else 'Quantity must be an integer').classes('w-10')
 
         # and only enables the quantity selector if the item typed in is valid
         quantity_select.bind_enabled_from(name, 'error', lambda e: e is None)

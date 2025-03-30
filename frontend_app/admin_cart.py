@@ -15,17 +15,20 @@ class AdminCart(Cart):
         self.restock_btn = None
 
     def render(self):
-        #checkout button
-        self.table = ui.table(columns=self.columns, rows=self.rows)
-        self.checkout_btn = ui.button('Checkout')
-        self.checkout_btn.on_click(lambda: self.checkout())
 
-        #restock button
-        self.restock_btn = ui.button('Restock')
-        self.restock_btn.on_click(lambda: self.restock())
+        self.table = ui.table(columns=self.columns, rows=self.rows)
+
+        with ui.row():
+            #checkout button
+            self.checkout_btn = ui.button('Checkout')
+            self.checkout_btn.on_click(lambda: self.checkout())
+
+             #restock button
+            self.restock_btn = ui.button('Restock')
+            self.restock_btn.on_click(lambda: self.restock())
 
     def restock(self):
-        print('restock button clicked')
+
         # convert cart items to item requests
         requests = []
         for item in self.rows:
