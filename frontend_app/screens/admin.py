@@ -1,5 +1,6 @@
 from nicegui import APIRouter, ui
 
+from frontend_app.analytics import AnalyticsRequest
 from frontend_app.common import show_inventory, show_cart
 
 router = APIRouter(prefix='/admin')
@@ -11,9 +12,13 @@ def admin_page():
     ui.page_title('Admin | Retriever Essentials')
     ui.label('Admin Dashboard')
     show_inventory()
+
     show_cart('admin', True)
 
-    # TODO: make report button switch to report screen
+
+    analytics = AnalyticsRequest()
+    analytics.render()
+
     with ui.row():
         choice_label = ui.label("CHOICE: ")
         restock_choice = ui.switch()
