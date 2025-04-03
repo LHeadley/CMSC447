@@ -1,9 +1,10 @@
 import json
 
-from nicegui import ui
+from nicegui import ui, app
 from pydantic import BaseModel
 from starlette.responses import JSONResponse
 
+from frontend_app.inventory import invalidate_inventory
 from models.request_schemas import ItemRequest, MultiItemRequest
 from models.response_schemas import MessageResponse
 from server import checkout_item, db_context
@@ -84,15 +85,8 @@ class Cart:
                 self.rows.clear()
                 self.table.update()
                 with ui.dialog() as dialog, ui.card():
-                    def reload():
-                        dialog.close()
-                        ui.navigate.reload()
-
                     ui.label('Success')
                     ui.button('Close', on_click=dialog.close)
-
-                dialog.on('hide', reload)
-
             elif isinstance(result, JSONResponse):
                 with ui.dialog() as dialog, ui.card():
                     ui.label(f'Error {result.status_code}: {json.loads(result.body.decode("utf-8"))["message"]}')
@@ -102,3 +96,4 @@ class Cart:
                     ui.label('Unknown Error')
                     ui.button('Close', on_click=dialog.close)
             dialog.open()
+            invalidate_inventory()
