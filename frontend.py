@@ -1,5 +1,7 @@
 from nicegui import ui
+from nicegui import app as guiapp
 
+from frontend_app.inventory import INV_VALID_FLAG
 from frontend_app.screens import admin, student
 from server import app
 
@@ -23,6 +25,7 @@ def show():
             login_btn.bind_enabled_from(id_input, 'value', backward=lambda e: len(e.strip()) > 0)
 
 
+guiapp.storage.general[INV_VALID_FLAG] = 0
 app.include_router(admin.router)
 app.include_router(student.router)
 
