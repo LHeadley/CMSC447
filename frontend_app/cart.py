@@ -4,6 +4,7 @@ from nicegui import ui
 from pydantic import BaseModel
 from starlette.responses import JSONResponse
 
+from frontend_app.inventory import invalidate_inventory
 from models.request_schemas import ItemRequest, MultiItemRequest
 from models.response_schemas import MessageResponse
 from server import checkout_item, db_context
@@ -80,25 +81,22 @@ class Cart:
         # pass multi request to checkout_item function
         with db_context() as db:
             result = checkout_item(request=multi_request, db=db)
-            if isinstance(result, MessageResponse):
-                self.rows.clear()
-                self.table.update()
-                with ui.dialog() as dialog, ui.card():
-                    def reload():
-                        dialog.close()
-                        ui.navigate.reload()
+            self.display_result(result)
+            invalidate_inventory()
 
-                    ui.label('Success')
-                    ui.button('Close', on_click=dialog.close)
-
-                dialog.on('hide', reload)
-
-            elif isinstance(result, JSONResponse):
-                with ui.dialog() as dialog, ui.card():
-                    ui.label(f'Error {result.status_code}: {json.loads(result.body.decode("utf-8"))["message"]}')
-                    ui.button('Close', on_click=dialog.close)
-            else:
-                with ui.dialog() as dialog, ui.card():
-                    ui.label('Unknown Error')
-                    ui.button('Close', on_click=dialog.close)
-            dialog.open()
+    def display_result(self, result):
+        if isinstance(result, MessageResponse):
+            self.rows.clear()
+            self.table.update()
+            with ui.dialog() as dialog, ui.card():
+                ui.label('Success')
+                ui.button('Close', on_click=dialog.close)
+        elif isinstance(result, JSONResponse):
+            with ui.dialog() as dialog, ui.card():
+                ui.label(f'Error {result.status_code}: {json.loads(result.body.decode("utf-8"))["message"]}')
+                ui.button('Close', on_click=dialog.close)
+        else:
+            with ui.dialog() as dialog, ui.card():
+                ui.label('Unknown Error')
+                ui.button('Close', on_click=dialog.close)
+        dialog.open()

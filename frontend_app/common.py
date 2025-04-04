@@ -1,7 +1,8 @@
-from nicegui import ui
+from nicegui import app, ui
 
 from frontend_app.admin_cart import AdminCart
 from frontend_app.cart import Cart, CartItem
+from frontend_app.inventory import Inventory
 from server import db_context, get_items
 
 
@@ -19,9 +20,6 @@ def show_cart(cart_owner: str | None = None, is_admin: bool = False) -> None:
         elif is_admin:
             quantity_select.max = float('inf')
 
-
-
-
     with db_context() as db:
         items = get_items(db)
 
@@ -30,7 +28,7 @@ def show_cart(cart_owner: str | None = None, is_admin: bool = False) -> None:
 
     if not is_admin:
         cart = Cart(cart_owner=cart_owner)
-    elif is_admin:
+    else:
         cart = AdminCart(cart_owner=cart_owner)
 
     with ui.row():
@@ -51,7 +49,6 @@ def show_cart(cart_owner: str | None = None, is_admin: bool = False) -> None:
         # and sets the max quantity to the max checkout quantity of the item typed in
         name.on_value_change(lambda e: set_max(e.value))
 
-
         add_btn = ui.button('Add to Cart')
         add_btn.bind_enabled_from(quantity_select)
 
@@ -62,28 +59,8 @@ def show_cart(cart_owner: str | None = None, is_admin: bool = False) -> None:
     cart.render()
 
 
-
 def show_inventory() -> None:
     """
     Displays all items in the inventory, along with their current stock.
     """
-    with db_context() as db:
-        items = get_items(db)
-
-    def swap_toggle(visible: bool):
-        toggle.text = 'Hide Inventory' if visible else 'Show Inventory'
-
-    toggle = ui.expansion(text='Hide Inventory', value=True)
-    toggle.on_value_change(lambda e: swap_toggle(e.value))
-
-    with toggle:
-        ui.table(
-            columns=[
-                {'id': 'id', 'label': 'ID', 'field': 'id'},
-                {'name': 'name', 'label': 'Name', 'field': 'name'},
-                {'name': 'stock', 'label': 'Stock', 'field': 'stock'},
-                {'name': 'max_checkout', 'label': 'Max Checkout', 'field': 'max_checkout'},
-            ],
-            rows=[item.model_dump() for item in items],
-            pagination=5
-        )
+    Inventory().render()

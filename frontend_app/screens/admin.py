@@ -20,13 +20,11 @@ def admin_page():
     ui.page_title('Admin | Retriever Essentials')
     ui.label('Admin Dashboard')
     ui.colors(primary='#EBB000') # styling to umbc gold
+    
+    ui.button('Go to Analytics', on_click=lambda:ui.navigate.to('admin/analytics'))
     show_inventory()
 
     show_cart('admin', True)
-
-
-    analytics = AnalyticsRequest()
-    analytics.render()
 
     with ui.row():
         choice_label = ui.label("CHOICE: ")
@@ -75,7 +73,14 @@ def admin_page():
                                    lambda v: valid_input(make_name.value, make_amt.value, v))
 
 
-def valid_input(name: str, amt: int, max: int) -> bool:
+@router.page('/analytics')
+def analytics_page():
+    ui.button('Home Page', on_click=lambda:ui.navigate.to('/admin'))
+    analytics = AnalyticsRequest()
+    analytics.render()
+
+
+def valid_input(id: int, name: str, amt: int, max: int) -> bool:
     # to check all potential input values for validity whenever one is changed
     # TODO: validation directly in inputs? (next sprint?)
 

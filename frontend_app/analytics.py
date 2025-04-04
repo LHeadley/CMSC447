@@ -49,9 +49,6 @@ class ReportResult:
             ui.label('No logs found for this query')
             return
 
-        for log in self.data:
-            print(log.model_dump())
-
         if self.report_type == ReportType.MOST_POPULAR_FREQUENCY or self.report_type == ReportType.LEAST_POPULAR:
             # go through each log and count the number of times each item was checked out
             item_count = {}
@@ -65,7 +62,6 @@ class ReportResult:
                         item_count[item.item_name] = 0
                     item_count[item.item_name] += 1
 
-            print(item_count)
             # sort the items by the number of times they were checked out
             sorted_items = sorted(item_count.items(), key=lambda x: x[1],
                                   reverse=self.report_type == ReportType.MOST_POPULAR_FREQUENCY)
