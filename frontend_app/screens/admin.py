@@ -6,6 +6,7 @@ from fastapi import Response
 
 from frontend_app.analytics import AnalyticsRequest
 from frontend_app.common import show_inventory, show_cart
+from frontend_app.inventory import invalidate_inventory
 
 from server import db_context, create_item
 from models.request_schemas import CreateRequest
@@ -80,7 +81,7 @@ def analytics_page():
     analytics.render()
 
 
-def valid_input(id: int, name: str, amt: int, max: int) -> bool:
+def valid_input(name: str, amt: int, max: int) -> bool:
     # to check all potential input values for validity whenever one is changed
     # TODO: validation directly in inputs? (next sprint?)
 
@@ -117,7 +118,7 @@ def make_item(name: str, amt: int, max: int):
                 ui.button("Close", on_click=dialog.close)
             dialog.open()
 
-        #TODO: reload database/screen/?
+        invalidate_inventory()
 
 
 # dummy functions for import/export #
