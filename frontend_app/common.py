@@ -1,4 +1,4 @@
-from nicegui import app, ui
+from nicegui import ui
 
 from frontend_app.admin_cart import AdminCart
 from frontend_app.cart import Cart, CartItem
@@ -6,7 +6,7 @@ from frontend_app.inventory import Inventory
 from server import db_context, get_items
 
 
-def show_cart(cart_owner: str | None = None, is_admin: bool = False) -> None:
+def show_cart(cart_owner: str | None = None, is_admin: bool = False) -> Cart:
     """
     Creates a cart and displays it.
     :param cart_owner: The student ID of the cart owner, to be used in checkout.
