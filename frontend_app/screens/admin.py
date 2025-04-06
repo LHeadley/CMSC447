@@ -4,8 +4,6 @@ from frontend_app.analytics import AnalyticsRequest
 from frontend_app.common import show_inventory, show_cart
 from frontend_app.cart import CartItem
 
-from server import DATABASE_URL
-
 try:
     from io import StringIO
     from form_io import form_io
@@ -122,7 +120,6 @@ def import_file(dest_cart, e):
     # now put the data into CartItems
     for row in data:
         dest_cart.add_to_cart(CartItem(id=1337, name=row[0], quantity=int(row[1]), max_checkout=12))
-
 
 
 def export_file(which_file):

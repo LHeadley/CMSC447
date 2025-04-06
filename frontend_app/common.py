@@ -57,7 +57,7 @@ def show_cart(cart_owner: str | None = None, is_admin: bool = False) -> None:
                      max_checkout=name_max_map[name.value])))
 
     cart.render()
-    return cart;
+    return cart
 
 
 def show_inventory() -> None:
