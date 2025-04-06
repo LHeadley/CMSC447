@@ -2,7 +2,15 @@ from nicegui import APIRouter, ui
 
 from frontend_app.analytics import AnalyticsRequest
 from frontend_app.common import show_inventory, show_cart
+from frontend_app.cart import CartItem
 
+
+try:
+    from io import StringIO
+    from form_io import form_io
+except ImportError:
+    print("Error: file_io module broken or not present")
+    
 router = APIRouter(prefix='/admin')
 
 
@@ -14,7 +22,7 @@ def admin_page():
     ui.button('Go to Analytics', on_click=lambda:ui.navigate.to('admin/analytics'))
     show_inventory()
 
-    show_cart('admin', True)
+    curr_cart = show_cart('admin', True)
 
     with ui.row():
         choice_label = ui.label("CHOICE: ")
@@ -29,11 +37,13 @@ def admin_page():
                                           lambda v: not v):
         # import/export restock order
         with ui.row():
-            ui.label("Import: ")
-            # import on_click currently dummy function
-            ui.button("Upload File", on_click=lambda: import_file())
+            ui.label("IMPORT")
+            with ui.element('div'):
+                ui.upload(label='Upload file', on_upload=lambda e: import_file(curr_cart, e))
+                ui.label("Select CSV or excel file, then confirm.")
             ui.label(" or ")
-            ui.textarea("Copy/Paste Spreadsheet", placeholder="paste here")
+            ui.textarea("Copy/Paste Spreadsheet", placeholder="paste here").props('clearable')
+            
         with ui.row():
             ui.label("Export: ")
             export_options = ["Current Inventory", "Transactions", "Orders", "Logs"]
@@ -97,9 +107,23 @@ def make_item(id: int, name: str, amt: int, max: int):
 
 
 # dummy functions for import/export #
-def import_file():
-    # dummy function for now, for importing spreadsheet
+def import_file(dest_cart, e):
+
+    # first parse file to extract its data
     ui.notify("FILE GRABBED", close_button="close")
+    if (e.name.endswith('.xlsx')):
+        data = form_io.read_excel(e.content)
+    else:
+        data = form_io.read_csv(StringIO(e.content.read().decode('utf-8')))
+
+    print(data)
+
+    # now put the data into CartItems
+    i = 1000
+    for row in data:
+        dest_cart.add_to_cart(CartItem(id=i, name=row[0], quantity=int(row[1]), max_checkout=12))
+        i+=1
+
 
 
 def export_file(which_file):
