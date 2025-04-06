@@ -1,16 +1,15 @@
 import json
 
+from fastapi import Response
 from nicegui import APIRouter, ui
 from starlette.responses import JSONResponse
-from fastapi import Response
 
 from frontend_app.analytics import AnalyticsRequest
 from frontend_app.common import show_inventory, show_cart
 from frontend_app.inventory import invalidate_inventory
-
-from server import db_context, create_item
 from models.request_schemas import CreateRequest
 from models.response_schemas import MessageResponse
+from server import db_context, create_item
 
 router = APIRouter(prefix='/admin')
 
@@ -20,8 +19,7 @@ router = APIRouter(prefix='/admin')
 def admin_page():
     ui.page_title('Admin | Retriever Essentials')
     ui.label('Admin Dashboard')
-    ui.colors(primary='#EBB000') # styling to umbc gold
-    
+
     ui.button('Go to Analytics', on_click=lambda:ui.navigate.to('admin/analytics'))
     show_inventory()
 
