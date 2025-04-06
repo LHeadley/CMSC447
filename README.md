@@ -2,7 +2,7 @@ This repo contains the code for Group 5's project for CMSC 447 Section 5 Spring 
 
 # Installation
 Clone the repository and run `pip3 install -r requirements.txt` to install all required packages.
-Must run on python 12+
+Must run on python 3.12+
 
 # Deployment
 
