@@ -153,7 +153,7 @@ def db_export(url, filename):
 
     
 # TODO: throw error
-def server_export(url, filename):
+def server_export(filename):
 
     with db_context() as db:
         items = get_items(db)

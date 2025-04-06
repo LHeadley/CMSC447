@@ -127,5 +127,5 @@ def export_file(which_file):
     ui.notify(f"FILE SENT ({which_file})", close_button="close")
 
     data = [["hello", 132], ["goodbye", 123]]
-    re_csv = form_io.server_export(DATABASE_URL, "RE_EXPORT.csv")
+    re_csv = form_io.server_export("RE_EXPORT.csv")
     ui.download("RE_EXPORT.csv", "RE_EXPORT.csv")
