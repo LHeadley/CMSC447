@@ -5,11 +5,18 @@ from nicegui import APIRouter, ui
 from starlette.responses import JSONResponse
 
 from frontend_app.analytics import AnalyticsRequest
+from frontend_app.cart import CartItem
 from frontend_app.common import show_inventory, show_cart
 from frontend_app.inventory import invalidate_inventory
 from models.request_schemas import CreateRequest
 from models.response_schemas import MessageResponse
 from server import db_context, create_item
+
+try:
+    from io import StringIO
+    from form_io import form_io
+except ImportError:
+    print("Error: file_io module (or its dependencies) broken or not present")
 
 router = APIRouter(prefix='/admin')
 
@@ -20,10 +27,10 @@ def admin_page():
     ui.page_title('Admin | Retriever Essentials')
     ui.label('Admin Dashboard')
 
-    ui.button('Go to Analytics', on_click=lambda:ui.navigate.to('admin/analytics'))
+    ui.button('Go to Analytics', on_click=lambda: ui.navigate.to('admin/analytics'))
     show_inventory()
 
-    show_cart('admin', True)
+    curr_cart = show_cart('admin', True)
 
     with ui.row():
         choice_label = ui.label("CHOICE: ")
@@ -38,11 +45,13 @@ def admin_page():
                                           lambda v: not v):
         # import/export restock order
         with ui.row():
-            ui.label("Import: ")
-            # import on_click currently dummy function
-            ui.button("Upload File", on_click=lambda: import_file())
+            ui.label("IMPORT")
+            with ui.element('div'):
+                ui.upload(label='Upload file', on_upload=lambda e: import_file(curr_cart, e))
+                ui.label("Select CSV or excel file, then confirm.")
             ui.label(" or ")
-            ui.textarea("Copy/Paste Spreadsheet", placeholder="paste here")
+            ui.textarea("Copy/Paste Spreadsheet", placeholder="paste here").props('clearable')
+
         with ui.row():
             ui.label("Export: ")
             export_options = ["Current Inventory", "Transactions", "Orders", "Logs"]
@@ -74,7 +83,7 @@ def admin_page():
 
 @router.page('/analytics')
 def analytics_page():
-    ui.button('Home Page', on_click=lambda:ui.navigate.to('/admin'))
+    ui.button('Home Page', on_click=lambda: ui.navigate.to('/admin'))
     analytics = AnalyticsRequest()
     analytics.render()
 
@@ -100,7 +109,7 @@ def make_item(name: str, amt: int, max: int):
     with db_context() as db:
         # attempt to add item to database
         result = create_item(CreateRequest(name=name, initial_stock=amt, max_checkout=max),
-                    Response(), db=db)
+                             Response(), db=db)
 
         # display popup for success or failure
         if isinstance(result, MessageResponse):
@@ -120,11 +129,25 @@ def make_item(name: str, amt: int, max: int):
 
 
 # dummy functions for import/export #
-def import_file():
-    # dummy function for now, for importing spreadsheet
+def import_file(dest_cart, e):
+    # first parse file to extract its data
     ui.notify("FILE GRABBED", close_button="close")
+    if (e.name.endswith('.xlsx')):
+        data = form_io.read_excel(e.content)
+    else:
+        data = form_io.read_csv(StringIO(e.content.read().decode('utf-8')))
+
+    print(data)
+
+    # now put the data into CartItems
+    for row in data:
+        dest_cart.add_to_cart(CartItem(id=1337, name=row[0], quantity=int(row[1]), max_checkout=12))
 
 
 def export_file(which_file):
     # dummy function for now, for exporting spreadsheet
     ui.notify(f"FILE SENT ({which_file})", close_button="close")
+
+    data = [["hello", 132], ["goodbye", 123]]
+    re_csv = form_io.server_export("RE_EXPORT.csv")
+    ui.download("RE_EXPORT.csv", "RE_EXPORT.csv")

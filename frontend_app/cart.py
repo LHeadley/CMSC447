@@ -31,7 +31,8 @@ class Cart:
     cart_owner: str | None
 
     def __init__(self, cart_owner=None):
-        self.columns = [{'id': 'id', 'label': 'ID', 'field': 'id'},
+        self.columns = [
+                        #{'id': 'id', 'label': 'ID', 'field': 'id'},
                         {'name': 'name', 'label': 'Name', 'field': 'name'},
                         {'name': 'quantity', 'label': 'Quantity', 'field': 'quantity'}
                         ]

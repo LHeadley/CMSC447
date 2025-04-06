@@ -2,46 +2,51 @@
 # File: form_io.py                                                             #
 #                                                                              #
 # Purpose: Handle order form file import/export to/from the database.          #
+#                                                                              #
+# Import with                                                                  #
+#    from form_io import form_io                                               # 
 ################################################################################
 
 import csv
 import pandas as pd
+
 
 from api import inventoryapi
 from api.inventoryapi import APIResponse, ResponseStatus
 from models.request_schemas import CreateRequest, ItemRequest, MultiItemRequest, ActionTypeModel, WeekdayModel
 from models.response_schemas import ItemResponse, TransactionResponse, MessageResponse, TransactionItemResponse
 
-from server import app, get_items, db_context
+# can't get url in some cases so I might have to utilize server instead of api:
+from server import db_context, get_items
 
 
 # ***********************
 # ** File input/output **
-# ***********************
+# ***********************    
 
 # file format: first col should be product name, last col quantity (other cols ignored)
 # TODO: throw errors
 # TODO: detect headers
-# TODO: excel .xlsx files
-def read_file(filename):
-    # if excel file
-    if filename.endswith('.xlsx'):
-        data = pd.read_excel(filename, header=None)
-        # extract data from the first and last columns, then convert to list format
-        return data[data.columns[0::len(data.columns)-1]].values.tolist()
-
-    # otherwise treat file as character-separated (CSV)
-    with open(filename, 'r', newline='') as csvfile:
-        # detect dialect with sample from csvfile
-        dialect = csv.Sniffer().sniff(csvfile.read(1024))
-        csvfile.seek(0)
-        # grab rows from file
-        freader = csv.reader(csvfile, dialect)
-        data = []
-        for row in freader:
-            data.append([row[0], int(row[-1])])
-
+def read_csv(csvfile):
+    
+    # detect dialect with sample from csvfile
+    dialect = csv.Sniffer().sniff(csvfile.read(1024))
+    csvfile.seek(0)
+    # grab rows from file
+    freader = csv.reader(csvfile, dialect)
+    data = []
+    for row in freader:
+        data.append([row[0], int(row[-1])])
+        
     return data
+
+# file format: first col should be product name, last col quantity (other cols ignored)
+# TODO: throw errors
+# TODO: detect headers
+def read_excel(xlsxfile):
+    data = pd.read_excel(csvfile, header=None)
+    # extract data from the first and last columns, then convert to list format
+    return data[data.columns[0::len(data.columns)-1]].values.tolist()
 
 
 # data format: list of 2-len ['name', quantity] lists
@@ -64,6 +69,7 @@ def write_file(filename, data):
         return data
 
 
+    
 # **************************
 # ** Database interaction **
 # **************************
@@ -140,6 +146,17 @@ def db_export(url, filename):
             print(res.formatted_string())
 
     items: list[ItemResponse] = res.model
+    data = [[x.name, x.stock] for x in items]
+
+    write_file(filename, data)
+
+
+    
+# TODO: throw error
+def server_export(filename):
+
+    with db_context() as db:
+        items = get_items(db)
     data = [[x.name, x.stock] for x in items]
 
     write_file(filename, data)
