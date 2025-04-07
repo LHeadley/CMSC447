@@ -1,3 +1,5 @@
+from typing import Self
+
 from nicegui import ui, app
 from nicegui.functions.update import update
 
@@ -9,7 +11,7 @@ INV_VALID_FLAG = 'inv_valid'
 class Inventory:
     table: ui.table
 
-    def render(self):
+    def render(self) -> Self:
         """
         Displays all items in the inventory, along with their current stock.
         """
@@ -38,6 +40,8 @@ class Inventory:
         def refresh(event):
             if INV_VALID_FLAG in event.sender:
                 update(self)
+
+        return self
 
     def update(self):
         if self.table is not None:

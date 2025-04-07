@@ -1,4 +1,5 @@
 import json
+from typing import Self
 
 from nicegui import ui, app
 from pydantic import BaseModel
@@ -69,7 +70,7 @@ class Cart:
         if self.name_in is not None:
             self.name_in.set_autocomplete(list(self.name_max_map.keys()))
 
-    def render(self) -> None:
+    def render(self) -> Self:
         """
         Render this cart on the page. The cart will automatically be updated when items are added.
         """
@@ -77,6 +78,7 @@ class Cart:
         self.table = ui.table(columns=self.columns, rows=self.rows)
         self.render_item_input()
         self.render_btns()
+        return self
 
     def set_quantity_max(self, item_name: str) -> None:
         """
