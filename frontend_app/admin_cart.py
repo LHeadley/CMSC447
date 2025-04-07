@@ -11,9 +11,7 @@ class AdminCart(Cart):
         super().__init__(cart_owner)
         self.restock_btn = None
 
-    def render(self):
-        self.table = ui.table(columns=self.columns, rows=self.rows)
-
+    def render_btns(self) -> None:
         with ui.row():
             # checkout button
             self.checkout_btn = ui.button('Checkout')
@@ -22,6 +20,12 @@ class AdminCart(Cart):
             # restock button
             self.restock_btn = ui.button('Restock')
             self.restock_btn.on_click(lambda: self.restock())
+
+    def set_quantity_max(self, ignored: str) -> None:
+        """
+        For admins, this is set to infinity for all items.
+        """
+        self.quantity_select.max = float('inf')
 
     def restock(self):
         # convert cart items to item requests

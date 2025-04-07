@@ -1,13 +1,14 @@
 import json
+from typing import Self
 
-from nicegui import ui
+from nicegui import ui, app
 from pydantic import BaseModel
 from starlette.responses import JSONResponse
 
-from frontend_app.inventory import invalidate_inventory
+from frontend_app.inventory import invalidate_inventory, INV_VALID_FLAG
 from models.request_schemas import ItemRequest, MultiItemRequest
 from models.response_schemas import MessageResponse
-from server import checkout_item, db_context
+from server import checkout_item, db_context, get_items
 
 
 class CartItem(BaseModel):
@@ -30,22 +31,98 @@ class Cart:
     checkout_btn: ui.button
     cart_owner: str | None
 
+    name_max_map: dict[str, int]
+    name_id_map: dict[str, int]
+    name_in: ui.input
+    quantity_select: ui.number
+
     def __init__(self, cart_owner=None):
         self.columns = [
-                        #{'id': 'id', 'label': 'ID', 'field': 'id'},
-                        {'name': 'name', 'label': 'Name', 'field': 'name'},
-                        {'name': 'quantity', 'label': 'Quantity', 'field': 'quantity'}
-                        ]
+            # {'id': 'id', 'label': 'ID', 'field': 'id'},
+            {'name': 'name', 'label': 'Name', 'field': 'name'},
+            {'name': 'quantity', 'label': 'Quantity', 'field': 'quantity'}
+        ]
         self.rows = []
         self.table = None
         self.checkout_btn = None
         self.cart_owner = cart_owner
 
-    def render(self) -> None:
+        self.name_max_map = {}
+        self.name_id_map = {}
+        self.name_in = None
+        self.quantity_select = None
+
+        # when the inventory is invalidated, update the name_max_map and name_id_map
+        app.storage.general.on_change(lambda e: update_event(e))
+
+        def update_event(event):
+            if INV_VALID_FLAG in event.sender:
+                self.update()
+
+    def update(self) -> None:
+        """
+        Updates the cart with the current items in the database.
+        """
+        with db_context() as db:
+            items = get_items(db)
+        self.name_max_map = {item.name: item.max_checkout for item in items}
+        self.name_id_map = {item.name: item.id for item in items}
+        if self.name_in is not None:
+            self.name_in.set_autocomplete(list(self.name_max_map.keys()))
+
+    def render(self) -> Self:
         """
         Render this cart on the page. The cart will automatically be updated when items are added.
         """
+        self.update()
         self.table = ui.table(columns=self.columns, rows=self.rows)
+        self.render_item_input()
+        self.render_btns()
+        return self
+
+    def set_quantity_max(self, item_name: str) -> None:
+        """
+        Sets the max quantity for the item input based on the item name.
+        :param item_name: The name of the item to set the max quantity for.
+        """
+        self.quantity_select.max = self.name_max_map.get(item_name, 0)
+
+    def render_item_input(self) -> None:
+        """
+        Renders the item input for the cart. This is a text input for the item name and a number input for the quantity,
+        along with a button to add the item to the cart.
+        """
+        with ui.row():
+            # adds the name text input which checks if each name is actually an item
+            self.name_in = ui.input(label='Product Name', autocomplete=list(self.name_max_map.keys()),
+                                    validation=lambda item:
+                                    None if item in self.name_max_map.keys()
+                                    else 'Unknown Product')
+
+            # adds the quantity selector and ensures that quantity is a positive integer
+            self.quantity_select = ui.number(label='Quantity', max=0, min=0, value=0,
+                                             validation=lambda quantity:
+                                             None if isinstance(quantity, int) or quantity.is_integer()
+                                             else 'Quantity must be an integer').classes('w-10')
+
+            # and only enables the quantity selector if the item typed in is valid
+            self.quantity_select.bind_enabled_from(self.name_in, 'error', lambda e: e is None)
+            # and sets the max quantity to the max checkout quantity of the item typed in
+            self.name_in.on_value_change(lambda e: self.set_quantity_max(e.value))
+
+            add_btn = ui.button('Add to Cart')
+            add_btn.bind_enabled_from(self.quantity_select)
+
+            add_btn.on_click(lambda: self.add_to_cart(
+                CartItem(id=self.name_id_map.get(self.name_in.value, 0),
+                         name=self.name_in.value,
+                         quantity=int(self.quantity_select.value),
+                         max_checkout=self.name_max_map[self.name_in.value])))
+
+    def render_btns(self) -> None:
+        """
+        Renders the buttons for the cart, excluding the item input.
+        """
         self.checkout_btn = ui.button('Checkout')
         self.checkout_btn.on_click(lambda: self.checkout())
 
@@ -71,6 +148,9 @@ class Cart:
                 self.table.update()
 
     def checkout(self):
+        """
+
+        """
         # convert cart items to item requests
         requests = []
         for item in self.rows:
