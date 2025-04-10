@@ -44,7 +44,7 @@ def read_csv(csvfile):
 # TODO: throw errors
 # TODO: detect headers
 def read_excel(xlsxfile):
-    data = pd.read_excel(csvfile, header=None)
+    data = pd.read_excel(xlsxfile, header=None)
     # extract data from the first and last columns, then convert to list format
     return data[data.columns[0::len(data.columns)-1]].values.tolist()
 
