@@ -6,7 +6,7 @@ from nicegui.functions.update import update
 from server import db_context, get_items
 
 INV_VALID_FLAG = 'inv_valid'
-
+STUDENT_VISIBLE = 'student_visible'
 
 class Inventory:
     table: ui.table
