@@ -2,6 +2,7 @@ from nicegui import ui
 from nicegui import app as guiapp
 
 from frontend_app.inventory import INV_VALID_FLAG
+from frontend_app.inventory import STUDENT_VISIBLE
 from frontend_app.screens import admin, student
 from server import app
 
@@ -26,6 +27,9 @@ def show():
 
 
 guiapp.storage.general[INV_VALID_FLAG] = 0
+if STUDENT_VISIBLE not in guiapp.storage.general:
+    guiapp.storage.general[STUDENT_VISIBLE] = True
+
 app.include_router(admin.router)
 app.include_router(student.router)
 

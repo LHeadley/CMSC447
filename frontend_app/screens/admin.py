@@ -1,16 +1,17 @@
 import json
 
 from fastapi import Response
-from nicegui import APIRouter, ui
+from nicegui import APIRouter, ui, app
 from starlette.responses import JSONResponse
 
 from frontend_app.analytics import AnalyticsRequest
 from frontend_app.cart import CartItem
 from frontend_app.common import show_inventory, show_cart
-from frontend_app.inventory import invalidate_inventory
+from frontend_app.inventory import invalidate_inventory, STUDENT_VISIBLE
 from models.request_schemas import CreateRequest
 from models.response_schemas import MessageResponse
 from server import db_context, create_item
+
 
 try:
     from io import StringIO
@@ -28,6 +29,8 @@ def admin_page():
     ui.label('Admin Dashboard')
 
     ui.button('Go to Analytics', on_click=lambda: ui.navigate.to('admin/analytics'))
+    ui.switch(text='Toggle Student Inventory View').bind_value(app.storage.general, STUDENT_VISIBLE)
+
     show_inventory()
 
     curr_cart = show_cart('admin', True)

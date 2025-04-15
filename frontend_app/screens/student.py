@@ -1,6 +1,7 @@
-from nicegui import APIRouter, ui
+from nicegui import APIRouter, ui, app
 
 from frontend_app.common import show_inventory, show_cart
+from frontend_app.inventory import STUDENT_VISIBLE
 
 router = APIRouter(prefix='/student')
 
@@ -9,5 +10,6 @@ router = APIRouter(prefix='/student')
 def student_page(student_id: str):
     ui.page_title('Student Dashboard | Retriever Essentials')
     ui.label(f'Student Dashboard - ID: {student_id}')
-    show_inventory()
+    with ui.element().bind_visibility(app.storage.general, STUDENT_VISIBLE):
+        show_inventory()
     show_cart(student_id)
