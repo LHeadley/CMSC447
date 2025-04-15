@@ -28,7 +28,7 @@ def show():
 
 guiapp.storage.general[INV_VALID_FLAG] = 0
 if STUDENT_VISIBLE not in guiapp.storage.general:
-    guiapp.storage.general[STUDENT_VISIBLE] = 1
+    guiapp.storage.general[STUDENT_VISIBLE] = True
 
 app.include_router(admin.router)
 app.include_router(student.router)
