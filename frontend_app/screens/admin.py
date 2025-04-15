@@ -50,7 +50,8 @@ def admin_page():
                 ui.upload(label='Upload file', on_upload=lambda e: import_file(curr_cart, e))
                 ui.label("Select CSV or excel file, then confirm.")
             ui.label(" or ")
-            ui.textarea("Copy/Paste Spreadsheet", placeholder="paste here").props('clearable')
+            ui.textarea("Copy/Paste Spreadsheet", placeholder="paste here", \
+                        on_change=lambda e: import_text(curr_cart, e.value)).props('clearable')
 
         with ui.row():
             ui.label("Export: ")
@@ -128,7 +129,7 @@ def make_item(name: str, amt: int, max: int):
         invalidate_inventory()
 
 
-# dummy functions for import/export #
+# functions for import/export #
 def import_file(dest_cart, e):
     # first parse file to extract its data
     ui.notify("FILE GRABBED", close_button="close")
@@ -143,6 +144,18 @@ def import_file(dest_cart, e):
     for row in data:
         dest_cart.add_to_cart(CartItem(id=1337, name=row[0], quantity=int(row[1]), max_checkout=12))
 
+def import_text(dest_cart, text):
+    # first parse text to extract its data
+    ui.notify("DATA GRABBED", close_button="close")
+
+    print("\nTEXT=\n", text)
+    
+    data = form_io.read_csv(StringIO(text))
+    # now put the data into CartItems
+    for row in data:
+        dest_cart.add_to_cart(CartItem(id=1337, name=row[0], quantity=int(row[1]), max_checkout=12))
+    print("\nDATA=\n", data)
+    
 
 def export_file(which_file):
     # dummy function for now, for exporting spreadsheet

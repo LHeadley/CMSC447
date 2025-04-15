@@ -3,7 +3,10 @@
 #                                                                              #
 # Purpose: Handle order form file import/export to/from the database.          #
 #                                                                              #
-# Import with                                                                  #
+# The functions are a little strange now due to conversion to server-based     #
+# file i/o.                                                                    #
+#                                                                              #
+# Import with:                                                                 #
 #    from form_io import form_io                                               # 
 ################################################################################
 
@@ -26,14 +29,24 @@ from server import db_context, get_items
 
 # file format: first col should be product name, last col quantity (other cols ignored)
 # TODO: throw errors
+# TODO: write pertinent tests
 # TODO: detect headers
 def read_csv(csvfile):
     
     # detect dialect with sample from csvfile
     dialect = csv.Sniffer().sniff(csvfile.read(1024))
     csvfile.seek(0)
+    header_detected = csv.Sniffer().has_header(csvfile.read(1024))
+    csvfile.seek(0)
+    
     # grab rows from file
     freader = csv.reader(csvfile, dialect)
+    
+    # ignore header if detected
+    if header_detected:
+        next(freader)
+        
+    # convert to list
     data = []
     for row in freader:
         data.append([row[0], int(row[-1])])
@@ -42,14 +55,30 @@ def read_csv(csvfile):
 
 # file format: first col should be product name, last col quantity (other cols ignored)
 # TODO: throw errors
+# TODO: write pertinent tests
 # TODO: detect headers
 def read_excel(xlsxfile):
-    data = pd.read_excel(csvfile, header=None)
+
+    # first detect if the first row is a header
+    # simpler hacky algorithm... just detect if there are no integers
+    header_detected = True
+    first_line = pd.read_excel(xlsxfile, header=None, nrows=1)
+    for cell in first_line.values.tolist()[0]:
+        try:
+            int(cell)
+            # integer detected
+            header_detected = False
+            break
+        except ValueError:
+            continue
+    
+    data = pd.read_excel(xlsxfile, header = 0 if header_detected else None)
     # extract data from the first and last columns, then convert to list format
     return data[data.columns[0::len(data.columns)-1]].values.tolist()
 
 
 # data format: list of 2-len ['name', quantity] lists
+# TODO: write pertinent tests
 # TODO: throw errors
 def write_file(filename, data):
 
@@ -154,7 +183,7 @@ def db_export(url, filename):
     
 # TODO: throw error
 def server_export(filename):
-
+    
     with db_context() as db:
         items = get_items(db)
     data = [[x.name, x.stock] for x in items]
