@@ -45,6 +45,7 @@ class Cart:
         self.rows = []
         self.table = None
         self.checkout_btn = None
+        self.clear_btn = None
         self.cart_owner = cart_owner
 
         self.name_max_map = {}
@@ -123,8 +124,14 @@ class Cart:
         """
         Renders the buttons for the cart, excluding the item input.
         """
-        self.checkout_btn = ui.button('Checkout')
-        self.checkout_btn.on_click(lambda: self.checkout())
+        with ui.row():
+            #checkout button
+            self.checkout_btn = ui.button('Checkout')
+            self.checkout_btn.on_click(lambda: self.checkout())
+
+            # clear button
+            self.clear_btn = ui.button('Clear')
+            self.clear_btn.on_click(lambda: self.clear_cart())
 
     def add_to_cart(self, item: CartItem) -> None:
         """
@@ -181,3 +188,7 @@ class Cart:
                 ui.label('Unknown Error')
                 ui.button('Close', on_click=dialog.close)
         dialog.open()
+
+    def clear_cart(self):
+        self.rows.clear()
+        self.table.update()
