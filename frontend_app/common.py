@@ -2,6 +2,8 @@ from frontend_app.admin_cart import AdminCart
 from frontend_app.cart import Cart
 from frontend_app.inventory import Inventory
 
+# for button/color theming
+BTN_MAIN = 'btn_main_color'
 
 def show_cart(cart_owner: str | None = None, is_admin: bool = False) -> Cart | AdminCart:
     """

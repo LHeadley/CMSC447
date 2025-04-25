@@ -8,6 +8,8 @@ from frontend_app.analytics import AnalyticsRequest
 from frontend_app.cart import CartItem
 from frontend_app.common import show_inventory, show_cart
 from frontend_app.inventory import invalidate_inventory, STUDENT_VISIBLE
+from frontend_app.common import BTN_MAIN
+
 from models.request_schemas import CreateRequest
 from models.response_schemas import MessageResponse
 from server import db_context, create_item
@@ -27,67 +29,82 @@ router = APIRouter(prefix='/admin')
 def admin_page():
     ui.page_title('Admin | Retriever Essentials')
     ui.label('Admin Dashboard')
+    ui.colors(primary=app.storage.general[BTN_MAIN])
 
-    ui.button('Go to Analytics', on_click=lambda: ui.navigate.to('admin/analytics'))
-    ui.switch(text='Toggle Student Inventory View').bind_value(app.storage.general, STUDENT_VISIBLE)
+    with ui.card():
+        ui.button('Go to Analytics', on_click=lambda: ui.navigate.to('admin/analytics'))
+        ui.switch(text='Toggle Student Inventory View').bind_value(app.storage.general, STUDENT_VISIBLE)
 
-    show_inventory()
+    with ui.card():
+        show_inventory()
 
-    curr_cart = show_cart('admin', True)
+        with ui.expansion("Cart", value=True):
+            curr_cart = show_cart('admin', True)
 
-    with ui.row():
-        choice_label = ui.label("CHOICE: ")
-        restock_choice = ui.switch()
-        # bind label text to the switch's current position
-        choice_label.bind_text_from(restock_choice, "value",
-                                    lambda v: "Import/Export: " if v == False else "Creating: ")
 
-    # creating vs restocking; bind visibility to switch's current position
-    ### restocking; visibility opposite switch value ###
-    with ui.column().bind_visibility_from(restock_choice, "value",
-                                          lambda v: not v):
-        # import/export restock order
-        with ui.row():
-            ui.label("IMPORT")
-            with ui.element('div'):
-                ui.upload(label='Upload file', on_upload=lambda e: import_file(curr_cart, e))
-                ui.label("Select CSV or excel file, then confirm.")
-            ui.label(" or ")
-            ui.textarea("Copy/Paste Spreadsheet", placeholder="paste here", \
-                        on_change=lambda e: import_text(curr_cart, e.value)).props('clearable')
+    #with ui.card():
+    #    with ui.row():
+    #        choice_label = ui.label("CHOICE: ")
+    #        restock_choice = ui.switch()
+    #        # bind label text to the switch's current position
+    #        choice_label.bind_text_from(restock_choice, "value",
+    #                                    lambda v: "Import/Export: " if v == False else "Creating: ")
 
-        with ui.row():
-            ui.label("Export: ")
-            export_options = ["Current Inventory", "Transactions", "Orders", "Logs"]
-            export_choice = ui.select(export_options, label="What to Export", value="Current Inventory")
-            # export on_click currently dummy function
-            ui.button("Export", on_click=lambda: export_file(export_choice.value))
 
-        ui.space()
+    # creating and importing
+    with ui.card():
+        ### importing ###
+        with ui.expansion("IMPORT/EXPORT"):
+            # import/export restock order
+            with ui.row():
+                ui.label("IMPORT")
+                with ui.element('div'):
+                    ui.upload(label='Upload file', on_upload=lambda e: import_file(curr_cart, e))
+                    ui.label("Select CSV or excel file, then confirm.")
+                ui.label(" or ")
+                ui.textarea("Copy/Paste Spreadsheet", placeholder="paste here",
+                            on_change=lambda e: import_text(curr_cart, e.value)).props('clearable')
 
-    ### creating; visibility matches switch value ###
-    with ui.column().bind_visibility_from(restock_choice, "value"):
-        make_btn = ui.button("CREATE NEW ITEM")
+            with ui.row():
+                ui.label("Export: ")
+                export_options = ["Current Inventory", "Transactions", "Orders", "Logs"]
+                export_choice = ui.select(export_options, label="What to Export", value="Current Inventory")
+                # export on_click currently dummy function
+                ui.button("Export", on_click=lambda: export_file(export_choice.value))
 
-        # item information
-        make_name = ui.input("Item Name", value="")
-        make_amt = ui.number("Amount In-Stock", value=0)
-        make_max = ui.number("Max Allowed per Checkout", value=0)
+    with ui.card():
+        ### creating; visibility matches switch value ###
+        with ui.expansion("CREATE ITEM"):
+            make_btn = ui.button("CREATE NEW ITEM")
 
-        # set create-item button to take info from input fields
-        make_btn.on_click(lambda: make_item(make_name.value, make_amt.value, make_max.value))
-        # bind create-item button clickability to valid input; have to bind to all
-        make_btn.bind_enabled_from(make_name, "value",
-                                   lambda v: valid_input(v, make_amt.value, make_max.value))
-        make_btn.bind_enabled_from(make_amt, "value",
-                                   lambda v: valid_input(make_name.value, v, make_max.value))
-        make_btn.bind_enabled_from(make_max, "value",
-                                   lambda v: valid_input(make_name.value, make_amt.value, v))
+            # item information
+            make_name = ui.input("Item Name", value="")
+            make_amt = ui.number("Amount In-Stock", value=0)
+            make_max = ui.number("Max Allowed per Checkout", value=0)
+
+            # set create-item button to take info from input fields
+            make_btn.on_click(lambda: make_item(make_name.value, make_amt.value, make_max.value))
+            # bind create-item button clickability to valid input; have to bind to all
+            make_btn.bind_enabled_from(make_name, "value",
+                                       lambda v: valid_input(v, make_amt.value, make_max.value))
+            make_btn.bind_enabled_from(make_amt, "value",
+                                       lambda v: valid_input(make_name.value, v, make_max.value))
+            make_btn.bind_enabled_from(make_max, "value",
+                                       lambda v: valid_input(make_name.value, make_amt.value, v))
+
+    # to post messages to the front page
+    with ui.card():
+        with ui.expansion("ANNOUNCEMENTS"):
+            message_btn = ui.button(text="Post Message")
+            message_area = ui.textarea()
+
+            message_btn.on_click(lambda: post_message(message_area.value))
 
 
 @router.page('/analytics')
 def analytics_page():
     ui.button('Home Page', on_click=lambda: ui.navigate.to('/admin'))
+    ui.colors(primary=app.storage.general[BTN_MAIN])
     analytics = AnalyticsRequest()
     analytics.render()
 
@@ -167,3 +184,8 @@ def export_file(which_file):
     data = [["hello", 132], ["goodbye", 123]]
     re_csv = form_io.server_export("RE_EXPORT.csv")
     ui.download("RE_EXPORT.csv", "RE_EXPORT.csv")
+
+
+def post_message(message: str):
+    # dummy function for posting message; maybe update general storage...?
+    ui.notify(message, close_button="close")
