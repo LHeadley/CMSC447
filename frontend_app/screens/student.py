@@ -13,8 +13,8 @@ def student_page(student_id: str):
     ui.label(f'Student Dashboard - ID: {student_id}')
     ui.colors(primary=app.storage.general[BTN_MAIN])
 
-    with ui.element().bind_visibility(app.storage.general, STUDENT_VISIBLE):
-        show_inventory()
     with ui.card():
+        with ui.element().bind_visibility(app.storage.general, STUDENT_VISIBLE):
+            show_inventory()
         with ui.expansion("CART", value=True):
             show_cart(student_id)
