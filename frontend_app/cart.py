@@ -33,7 +33,7 @@ class Cart:
 
     name_max_map: dict[str, int]
     name_id_map: dict[str, int]
-    name_in: ui.input
+    name_in: ui.select
     quantity_select: ui.number
 
     def __init__(self, cart_owner=None):
@@ -68,8 +68,6 @@ class Cart:
             items = get_items(db)
         self.name_max_map = {item.name: item.max_checkout for item in items}
         self.name_id_map = {item.name: item.id for item in items}
-        if self.name_in is not None:
-            self.name_in.set_autocomplete(list(self.name_max_map.keys()))
 
     def render(self) -> Self:
         """
@@ -95,10 +93,9 @@ class Cart:
         """
         with ui.row():
             # adds the name text input which checks if each name is actually an item
-            self.name_in = ui.input(label='Product Name', autocomplete=list(self.name_max_map.keys()),
-                                    validation=lambda item:
-                                    None if item in self.name_max_map.keys()
-                                    else 'Unknown Product')
+            items = [key for key in self.name_id_map.keys()]
+            self.name_in = ui.select(label="Product Name", options=items, with_input=True,
+                                     value=items[0])
 
             # adds the quantity selector and ensures that quantity is a positive integer
             self.quantity_select = ui.number(label='Quantity', max=0, min=0, value=0,
@@ -107,12 +104,14 @@ class Cart:
                                              else 'Quantity must be an integer').classes('w-10')
 
             # and only enables the quantity selector if the item typed in is valid
-            self.quantity_select.bind_enabled_from(self.name_in, 'error', lambda e: e is None)
+            self.quantity_select.bind_enabled_from(self.name_in, 'value',
+                                                   lambda v: v in items)
             # and sets the max quantity to the max checkout quantity of the item typed in
             self.name_in.on_value_change(lambda e: self.set_quantity_max(e.value))
 
             add_btn = ui.button('Add to Cart')
-            add_btn.bind_enabled_from(self.quantity_select)
+            add_btn.bind_enabled_from(self.quantity_select, target_name="value",
+                                      backward=lambda v: v > 0)
 
             add_btn.on_click(lambda: self.add_to_cart(
                 CartItem(id=self.name_id_map.get(self.name_in.value, 0),

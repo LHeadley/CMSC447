@@ -6,9 +6,8 @@ from starlette.responses import JSONResponse
 
 from frontend_app.analytics import AnalyticsRequest
 from frontend_app.cart import CartItem
-from frontend_app.common import show_inventory, show_cart
+from frontend_app.common import show_inventory, show_cart, BTN_MAIN, ADMIN_MSG
 from frontend_app.inventory import invalidate_inventory, STUDENT_VISIBLE
-from frontend_app.common import BTN_MAIN
 
 from models.request_schemas import CreateRequest
 from models.response_schemas import MessageResponse
@@ -40,15 +39,6 @@ def admin_page():
 
         with ui.expansion("Cart", value=True):
             curr_cart = show_cart('admin', True)
-
-
-    #with ui.card():
-    #    with ui.row():
-    #        choice_label = ui.label("CHOICE: ")
-    #        restock_choice = ui.switch()
-    #        # bind label text to the switch's current position
-    #        choice_label.bind_text_from(restock_choice, "value",
-    #                                    lambda v: "Import/Export: " if v == False else "Creating: ")
 
 
     # creating and importing
@@ -96,7 +86,7 @@ def admin_page():
     with ui.card():
         with ui.expansion("ANNOUNCEMENTS"):
             message_btn = ui.button(text="Post Message")
-            message_area = ui.textarea()
+            message_area = ui.textarea(value=app.storage.general[ADMIN_MSG]).props("clearable")
 
             message_btn.on_click(lambda: post_message(message_area.value))
 
@@ -129,7 +119,8 @@ def make_item(name: str, amt: int, max: int):
     # add new item to the database
     with db_context() as db:
         # attempt to add item to database
-        result = create_item(CreateRequest(name=name, initial_stock=amt, max_checkout=max),
+        form_name = name.strip().upper()
+        result = create_item(CreateRequest(name=form_name, initial_stock=amt, max_checkout=max),
                              Response(), db=db)
 
         # display popup for success or failure
@@ -187,5 +178,10 @@ def export_file(which_file):
 
 
 def post_message(message: str):
-    # dummy function for posting message; maybe update general storage...?
-    ui.notify(message, close_button="close")
+    # update front page with admin message
+    if message is not None:
+        ui.notify("Message Posted", close_button="close")
+        app.storage.general[ADMIN_MSG] = message
+    else:
+        ui.notify("Error: cannot post empty message", close_button="close")
+
