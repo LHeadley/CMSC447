@@ -4,6 +4,7 @@ from fastapi import Response
 from nicegui import APIRouter, ui, app
 from starlette.responses import JSONResponse
 
+import server
 from frontend_app.analytics import AnalyticsRequest
 from frontend_app.cart import CartItem
 from frontend_app.common import show_inventory, show_cart
@@ -100,6 +101,20 @@ def admin_page():
 
             message_btn.on_click(lambda: post_message(message_area.value))
 
+    with ui.card():
+        ### creating; visibility matches switch value ###
+        with ui.expansion("DELETE ITEM"):
+            delete_btn = ui.button("DELETE ITEM")
+
+            # item information
+            delete_name = ui.input("Item Name", value="")
+
+            # set delete-item button to take info from input fields
+            delete_btn.on_click(lambda: delete_item(make_name.value))
+            # bind create-item button clickability to valid input; have to bind to all
+            delete_btn.bind_enabled_from(delete_name, "value",
+                                       lambda v: make_amt.value != "")
+
 
 @router.page('/analytics')
 def analytics_page():
@@ -189,3 +204,7 @@ def export_file(which_file):
 def post_message(message: str):
     # dummy function for posting message; maybe update general storage...?
     ui.notify(message, close_button="close")
+
+def delete_item(name: str):
+    with db_context() as db:
+        server.delete_item(name, db)
