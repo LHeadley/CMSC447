@@ -207,4 +207,20 @@ def post_message(message: str):
 
 def delete_item(name: str):
     with db_context() as db:
-        server.delete_item(name, db)
+       result = server.delete_item(name, db)
+
+       if isinstance(result, MessageResponse):
+           # success
+           with ui.dialog() as dialog, ui.card():
+               ui.label(result.message)
+               ui.button("Close", on_click=dialog.close)
+           dialog.open()
+       elif isinstance(result, JSONResponse):
+           # failure (item already exists)
+           with ui.dialog() as dialog, ui.card():
+               ui.label(f"Error {result.status_code}: {json.loads(result.body.decode())["message"]}")
+               ui.button("Close", on_click=dialog.close)
+           dialog.open()
+
+       invalidate_inventory()
+
