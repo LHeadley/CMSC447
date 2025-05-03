@@ -23,18 +23,21 @@ except ImportError:
 router = APIRouter(prefix='/admin')
 
 
-# TODO: Add item creation, logs and restocking
 @router.page('')
 def admin_page():
     ui.page_title('Admin | Retriever Essentials')
     ui.label('Admin Dashboard')
     ui.colors(primary=app.storage.general[BTN_MAIN])
 
+    # screen navigation
     with ui.card():
-        ui.button('Go to Analytics', on_click=lambda: ui.navigate.to('admin/analytics'))
-        ui.switch(text='Toggle Student Inventory View').bind_value(app.storage.general, STUDENT_VISIBLE)
+        with ui.row():
+            ui.button(text="Logout", on_click=lambda: ui.navigate.to("/"))
+            ui.button('Go to Analytics', on_click=lambda: ui.navigate.to('admin/analytics'))
 
+    # inventory
     with ui.card():
+        ui.switch(text='Toggle Student Inventory View').bind_value(app.storage.general, STUDENT_VISIBLE)
         show_inventory()
 
         with ui.expansion("Cart", value=True):

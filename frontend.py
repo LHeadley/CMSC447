@@ -16,6 +16,7 @@ def show():
     ui.page_title('Login | Retriever Essentials')
     ui.colors(primary=guiapp.storage.general[BTN_MAIN])
     ui.button.default_classes("!text-black")
+
     with ui.column():
         ui.label('Please select your role:')
         with ui.row():
@@ -29,7 +30,7 @@ def show():
 
         with ui.card():
             # allows admin messages to be formatted using markdown (incl. html tags)
-            ui.markdown("<u> <strong> ANNOUNCEMENTS </strong> </u>")
+            ui.markdown("<u> <h4> ANNOUNCEMENTS </h4> </u>")
             ui.markdown(guiapp.storage.general[ADMIN_MSG])
 
 

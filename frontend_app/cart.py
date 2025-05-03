@@ -94,6 +94,7 @@ class Cart:
         with ui.row():
             # adds the name text input which checks if each name is actually an item
             items = [key for key in self.name_id_map.keys()]
+            items.insert(0, "Select Item")
             self.name_in = ui.select(label="Product Name", options=items, with_input=True,
                                      value=items[0])
 
@@ -105,13 +106,15 @@ class Cart:
 
             # and only enables the quantity selector if the item typed in is valid
             self.quantity_select.bind_enabled_from(self.name_in, 'value',
-                                                   lambda v: v in items)
+                                                   lambda v: v in self.name_id_map.keys())
             # and sets the max quantity to the max checkout quantity of the item typed in
             self.name_in.on_value_change(lambda e: self.set_quantity_max(e.value))
 
+            # make add-to-cart button and bind to item validation and quantity
             add_btn = ui.button('Add to Cart')
             add_btn.bind_enabled_from(self.quantity_select, target_name="value",
                                       backward=lambda v: v > 0)
+            add_btn.bind_enabled_from(self.quantity_select)
 
             add_btn.on_click(lambda: self.add_to_cart(
                 CartItem(id=self.name_id_map.get(self.name_in.value, 0),

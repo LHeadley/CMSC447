@@ -13,6 +13,11 @@ def student_page(student_id: str):
     ui.label(f'Student Dashboard - ID: {student_id}')
     ui.colors(primary=app.storage.general[BTN_MAIN])
 
+    # screen navigation
+    with ui.card():
+        ui.button(text="Logout", on_click=lambda: ui.navigate.to("/"))
+
+    # functionality
     with ui.card():
         with ui.element().bind_visibility(app.storage.general, STUDENT_VISIBLE):
             show_inventory()
