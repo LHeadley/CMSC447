@@ -110,10 +110,10 @@ def admin_page():
             delete_name = ui.input("Item Name", value="")
 
             # set delete-item button to take info from input fields
-            delete_btn.on_click(lambda: delete_item(make_name.value))
+            delete_btn.on_click(lambda: delete_item(delete_name.value))
             # bind create-item button clickability to valid input; have to bind to all
             delete_btn.bind_enabled_from(delete_name, "value",
-                                       lambda v: make_amt.value != "")
+                                       lambda v:v)
 
 
 @router.page('/analytics')
