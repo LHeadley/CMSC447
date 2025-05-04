@@ -1,11 +1,14 @@
-from nicegui import ui
 from nicegui import app as guiapp
+from nicegui import ui
 
+from frontend_app.common import BTN_MAIN
 from frontend_app.inventory import INV_VALID_FLAG
 from frontend_app.inventory import STUDENT_VISIBLE
+
 from frontend_app.common import BTN_MAIN, ADMIN_MSG
 from frontend_app.screens import admin, student
 from server import app
+
 
 # TODO: Switch to using sessions for login screen
 # See https://github.com/zauberzeug/nicegui/blob/main/examples/authentication/main.py and https://nicegui.io/documentation/storage
@@ -45,5 +48,5 @@ guiapp.storage.general[ADMIN_MSG] = "*announcements from staff go here*"
 
 app.include_router(admin.router)
 app.include_router(student.router)
-
+guiapp.add_static_files('/static', 'static')
 ui.run_with(app)

@@ -1,0 +1,3 @@
+# exclude all images but keep default.png
+*.png
+!default.png
