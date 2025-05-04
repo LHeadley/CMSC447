@@ -132,7 +132,7 @@ class Cart:
             self.checkout_btn.on_click(lambda: self.checkout())
 
             # clear button
-            self.clear_btn = ui.button('Clear')
+            self.clear_btn = ui.button('Clear Cart')
             self.clear_btn.on_click(lambda: self.clear_cart())
 
     def add_to_cart(self, item: CartItem) -> None:

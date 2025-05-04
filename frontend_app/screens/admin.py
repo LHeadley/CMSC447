@@ -88,7 +88,7 @@ def admin_page():
     # to post messages to the front page
     with ui.card():
         with ui.expansion("ANNOUNCEMENTS"):
-            message_btn = ui.button(text="Post Message")
+            message_btn = ui.button(text="Update Message")
             message_area = ui.textarea(value=app.storage.general[ADMIN_MSG]).props("clearable")
 
             message_btn.on_click(lambda: post_message(message_area.value))
@@ -98,6 +98,8 @@ def admin_page():
 def analytics_page():
     ui.button('Home Page', on_click=lambda: ui.navigate.to('/admin'))
     ui.colors(primary=app.storage.general[BTN_MAIN])
+
+
     analytics = AnalyticsRequest()
     analytics.render()
 
@@ -183,8 +185,8 @@ def export_file(which_file):
 def post_message(message: str):
     # update front page with admin message
     if message is not None:
-        ui.notify("Message Posted", close_button="close")
+        ui.notify("Message Updated", close_button="close")
         app.storage.general[ADMIN_MSG] = message
     else:
-        ui.notify("Error: cannot post empty message", close_button="close")
+        ui.notify("Error: cannot update to empty message", close_button="close")
 

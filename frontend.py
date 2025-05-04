@@ -26,7 +26,7 @@ def show():
             login_btn = ui.button('Student', on_click=lambda: ui.navigate.to(f'/student/{id_input.value}'))
             # binds the enabled status of the login button to the length of the inputted student id
             # so if len(login_btn.value.strip()) > 0 then the button is enabled, otherwise its disabled
-            login_btn.bind_enabled_from(id_input, 'value', backward=lambda e: len(e.strip()) > 0)
+            login_btn.bind_enabled_from(id_input, 'value', backward=lambda e: (len(e.strip()) > 0 and len(e.strip()) <= 10) )
 
         with ui.card():
             # allows admin messages to be formatted using markdown (incl. html tags)
