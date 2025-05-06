@@ -4,6 +4,7 @@ from fastapi import Response
 from nicegui import APIRouter, ui, app
 from starlette.responses import JSONResponse
 
+import server
 from frontend_app.analytics import AnalyticsRequest
 from frontend_app.cart import CartItem
 from frontend_app.common import show_inventory, show_cart, BTN_MAIN, ADMIN_MSG
@@ -92,6 +93,20 @@ def admin_page():
             message_area = ui.textarea(value=app.storage.general[ADMIN_MSG]).props("clearable")
 
             message_btn.on_click(lambda: post_message(message_area.value))
+
+    with ui.card():
+        ### creating; visibility matches switch value ###
+        with ui.expansion("DELETE ITEM"):
+            delete_btn = ui.button("DELETE ITEM")
+
+            # item information
+            delete_name = ui.input("Item Name", value="")
+
+            # set delete-item button to take info from input fields
+            delete_btn.on_click(lambda: delete_item(delete_name.value))
+            # bind create-item button clickability to valid input; have to bind to all
+            delete_btn.bind_enabled_from(delete_name, "value",
+                                       lambda v:v)
 
 
 @router.page('/analytics')
@@ -189,4 +204,24 @@ def post_message(message: str):
         app.storage.general[ADMIN_MSG] = message
     else:
         ui.notify("Error: cannot update to empty message", close_button="close")
+
+
+def delete_item(name: str):
+    with db_context() as db:
+       result = server.delete_item(name, db)
+
+       if isinstance(result, MessageResponse):
+           # success
+           with ui.dialog() as dialog, ui.card():
+               ui.label(result.message)
+               ui.button("Close", on_click=dialog.close)
+           dialog.open()
+       elif isinstance(result, JSONResponse):
+           # failure (item already exists)
+           with ui.dialog() as dialog, ui.card():
+               ui.label(f"Error {result.status_code}: {json.loads(result.body.decode())["message"]}")
+               ui.button("Close", on_click=dialog.close)
+           dialog.open()
+
+       invalidate_inventory()
 
