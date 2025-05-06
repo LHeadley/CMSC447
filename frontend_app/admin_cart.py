@@ -22,7 +22,7 @@ class AdminCart(Cart):
             self.restock_btn.on_click(lambda: self.restock())
 
             # clear button
-            self.clear_btn = ui.button('Clear')
+            self.clear_btn = ui.button('Clear Cart')
             self.clear_btn.on_click(lambda: self.clear_cart())
 
     def set_quantity_max(self, ignored: str) -> None:

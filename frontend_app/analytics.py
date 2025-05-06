@@ -196,6 +196,8 @@ class AnalyticsRequest:
 
         # create the container for the report results
         # create the date options
+        with ui.card():
+            ui.label("Select Dates (unfilled dates default to 'all time' values)")
         with ui.row():
             self.min_date_in = ui.input('Start Date')
             self.max_date_in = ui.input('End Date')
@@ -229,6 +231,8 @@ class AnalyticsRequest:
 
             self.all_time_autofill = ui.button('All Time', on_click=lambda: fill_dates())
 
+        with ui.card():
+            ui.label("Run Reports (check capitalization on any item names)")
         with ui.row():
             self.submit_btn = ui.button('Submit Query')
             self.report_select = ui.select(label='Select Report Type',
