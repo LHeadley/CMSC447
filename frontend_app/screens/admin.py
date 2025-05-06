@@ -7,9 +7,8 @@ from starlette.responses import JSONResponse
 import server
 from frontend_app.analytics import AnalyticsRequest
 from frontend_app.cart import CartItem
-from frontend_app.common import show_inventory, show_cart
+from frontend_app.common import show_inventory, show_cart, BTN_MAIN, ADMIN_MSG
 from frontend_app.inventory import invalidate_inventory, STUDENT_VISIBLE
-from frontend_app.common import BTN_MAIN
 
 from models.request_schemas import CreateRequest
 from models.response_schemas import MessageResponse
@@ -25,31 +24,25 @@ except ImportError:
 router = APIRouter(prefix='/admin')
 
 
-# TODO: Add item creation, logs and restocking
 @router.page('')
 def admin_page():
     ui.page_title('Admin | Retriever Essentials')
     ui.label('Admin Dashboard')
     ui.colors(primary=app.storage.general[BTN_MAIN])
 
+    # screen navigation
     with ui.card():
-        ui.button('Go to Analytics', on_click=lambda: ui.navigate.to('admin/analytics'))
-        ui.switch(text='Toggle Student Inventory View').bind_value(app.storage.general, STUDENT_VISIBLE)
+        with ui.row():
+            ui.button(text="Logout", on_click=lambda: ui.navigate.to("/"))
+            ui.button('Go to Analytics', on_click=lambda: ui.navigate.to('admin/analytics'))
 
+    # inventory
     with ui.card():
+        ui.switch(text='Toggle Student Inventory View').bind_value(app.storage.general, STUDENT_VISIBLE)
         show_inventory()
 
         with ui.expansion("Cart", value=True):
             curr_cart = show_cart('admin', True)
-
-
-    #with ui.card():
-    #    with ui.row():
-    #        choice_label = ui.label("CHOICE: ")
-    #        restock_choice = ui.switch()
-    #        # bind label text to the switch's current position
-    #        choice_label.bind_text_from(restock_choice, "value",
-    #                                    lambda v: "Import/Export: " if v == False else "Creating: ")
 
 
     # creating and importing
@@ -96,8 +89,8 @@ def admin_page():
     # to post messages to the front page
     with ui.card():
         with ui.expansion("ANNOUNCEMENTS"):
-            message_btn = ui.button(text="Post Message")
-            message_area = ui.textarea()
+            message_btn = ui.button(text="Update Message")
+            message_area = ui.textarea(value=app.storage.general[ADMIN_MSG]).props("clearable")
 
             message_btn.on_click(lambda: post_message(message_area.value))
 
@@ -120,6 +113,8 @@ def admin_page():
 def analytics_page():
     ui.button('Home Page', on_click=lambda: ui.navigate.to('/admin'))
     ui.colors(primary=app.storage.general[BTN_MAIN])
+
+
     analytics = AnalyticsRequest()
     analytics.render()
 
@@ -144,7 +139,8 @@ def make_item(name: str, amt: int, max: int):
     # add new item to the database
     with db_context() as db:
         # attempt to add item to database
-        result = create_item(CreateRequest(name=name, initial_stock=amt, max_checkout=max),
+        form_name = name.strip().upper()
+        result = create_item(CreateRequest(name=form_name, initial_stock=amt, max_checkout=max),
                              Response(), db=db)
 
         # display popup for success or failure
@@ -202,8 +198,13 @@ def export_file(which_file):
 
 
 def post_message(message: str):
-    # dummy function for posting message; maybe update general storage...?
-    ui.notify(message, close_button="close")
+    # update front page with admin message
+    if message is not None:
+        ui.notify("Message Updated", close_button="close")
+        app.storage.general[ADMIN_MSG] = message
+    else:
+        ui.notify("Error: cannot update to empty message", close_button="close")
+
 
 def delete_item(name: str):
     with db_context() as db:

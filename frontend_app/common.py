@@ -4,6 +4,8 @@ from frontend_app.inventory import Inventory
 
 # for button/color theming
 BTN_MAIN = 'btn_main_color'
+# for the admin message board
+ADMIN_MSG = 'admin_board_message'
 
 def show_cart(cart_owner: str | None = None, is_admin: bool = False) -> Cart | AdminCart:
     """
