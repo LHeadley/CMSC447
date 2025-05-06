@@ -4,6 +4,7 @@ from typing import Self
 from nicegui import ui, app
 from nicegui.functions.update import update
 
+from models.response_schemas import ItemResponse
 from server import db_context, get_items
 
 INV_VALID_FLAG = 'inv_valid'
@@ -25,9 +26,9 @@ class Inventory:
         with toggle:
             self.table = ui.table(
                 columns=[
-                    {'name': 'id', 'label': 'ID', 'field': 'id'},
-                    {'name': 'name', 'label': 'Name', 'field': 'name'},
-                    {'name': 'stock', 'label': 'Stock', 'field': 'stock'},
+                    {'name': 'id', 'label': 'ID', 'field': 'id', 'sortable': True},
+                    {'name': 'name', 'label': 'Name', 'field': 'name', 'sortable': True},
+                    {'name': 'stock', 'label': 'Stock', 'field': 'stock', 'sortable': True},
                     {'name': 'max_checkout', 'label': 'Max Checkout', 'field': 'max_checkout'},
                     {'name': 'image', 'label': 'Image', 'field': 'image'}
                 ],
@@ -61,13 +62,14 @@ class Inventory:
         return self
 
     @staticmethod
-    def create_item_json(items):
+    def create_item_json(items: list[ItemResponse]):
         """
         Creates a JSON representation of the items in the inventory.
         :param items: The items to create a JSON representation of.
         :return: A JSON representation of the items.
         """
         json = []
+        items.sort(key=lambda e: e.name)
         for item in items:
             # for images, we use the name of the item as the filename or default.png if it doesn't exist
             image_filename = f'{item.name}.png'
