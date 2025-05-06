@@ -132,7 +132,7 @@ def upload_image(e: events.UploadEventArguments, img_data):
     temp_img_file.write(e.content.read())
     img_data['file'] = temp_img_file
     img_data['path'] = temp_img_file.name
-    img_data['suffix'] = Path(temp_img_file.name).suffix
+    img_data['suffix'] = Path(e.name).suffix
 
 
 def make_item(name: str, amt: int, max: int, img_data):
@@ -151,6 +151,7 @@ def make_item(name: str, amt: int, max: int, img_data):
                 img.save(dest)
 
         # clear temp file
+        img_data['file'].close()
         img_data['file'] = None
         img_data['path'] = None
         img_data['suffix'] = None
