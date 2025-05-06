@@ -144,21 +144,22 @@ def make_item(name: str, amt: int, max: int, img_data):
         result = create_item(CreateRequest(name=name, initial_stock=amt, max_checkout=max),
                              Response(), db=db)
 
-        # now create a new file in /static with the image
-        if img_data['file'] is not None:
-            dest = Path('static') / f'{name}.png'
-            with Image.open(img_data['file']) as img:
-                img.save(dest)
-
-        # clear temp file
-        img_data['file'].close()
-        img_data['file'] = None
-        img_data['path'] = None
-        img_data['suffix'] = None
-
         # display popup for success or failure
         if isinstance(result, MessageResponse):
             # success
+
+            # now create a new file in /static with the image
+            if img_data['file'] is not None:
+                dest = Path('static') / f'{name}.png'
+                with Image.open(img_data['file']) as img:
+                    img.save(dest)
+
+            # clear temp file
+            img_data['file'].close()
+            img_data['file'] = None
+            img_data['path'] = None
+            img_data['suffix'] = None
+
             with ui.dialog() as dialog, ui.card():
                 ui.label(result.message)
                 ui.button("Close", on_click=dialog.close)
