@@ -1,19 +1,20 @@
 import json
+import tempfile
+from pathlib import Path
 
+from PIL import Image
 from fastapi import Response
-from nicegui import APIRouter, ui, app
+from nicegui import APIRouter, ui, app, events
 from starlette.responses import JSONResponse
 
 from frontend_app.analytics import AnalyticsRequest
 from frontend_app.cart import CartItem
+from frontend_app.common import BTN_MAIN
 from frontend_app.common import show_inventory, show_cart
 from frontend_app.inventory import invalidate_inventory, STUDENT_VISIBLE
-from frontend_app.common import BTN_MAIN
-
 from models.request_schemas import CreateRequest
 from models.response_schemas import MessageResponse
 from server import db_context, create_item
-
 
 try:
     from io import StringIO
@@ -40,16 +41,6 @@ def admin_page():
 
         with ui.expansion("Cart", value=True):
             curr_cart = show_cart('admin', True)
-
-
-    #with ui.card():
-    #    with ui.row():
-    #        choice_label = ui.label("CHOICE: ")
-    #        restock_choice = ui.switch()
-    #        # bind label text to the switch's current position
-    #        choice_label.bind_text_from(restock_choice, "value",
-    #                                    lambda v: "Import/Export: " if v == False else "Creating: ")
-
 
     # creating and importing
     with ui.card():
@@ -82,8 +73,12 @@ def admin_page():
             make_amt = ui.number("Amount In-Stock", value=0)
             make_max = ui.number("Max Allowed per Checkout", value=0)
 
+            img_data = {'path': None, 'suffix': None, 'file': None}
+            image_upload = ui.upload(label='Image Upload', auto_upload=True).props('accept=.png,.jpg,.jpeg')
+            image_upload.on_upload(lambda e: upload_image(e, img_data))
+
             # set create-item button to take info from input fields
-            make_btn.on_click(lambda: make_item(make_name.value, make_amt.value, make_max.value))
+            make_btn.on_click(lambda: make_item(make_name.value, make_amt.value, make_max.value, img_data))
             # bind create-item button clickability to valid input; have to bind to all
             make_btn.bind_enabled_from(make_name, "value",
                                        lambda v: valid_input(v, make_amt.value, make_max.value))
@@ -125,12 +120,40 @@ def valid_input(name: str, amt: int, max: int) -> bool:
     return True
 
 
-def make_item(name: str, amt: int, max: int):
+def upload_image(e: events.UploadEventArguments, img_data):
+    if e.type not in ['image/png', 'image/jpeg']:
+        ui.notify('Only .png and .jpg files are allowed.')
+        return
+
+    if img_data['file'] is not None:
+        img_data['file'].close()
+
+    temp_img_file = tempfile.NamedTemporaryFile()
+    temp_img_file.write(e.content.read())
+    img_data['file'] = temp_img_file
+    img_data['path'] = temp_img_file.name
+    img_data['suffix'] = Path(temp_img_file.name).suffix
+
+
+def make_item(name: str, amt: int, max: int, img_data):
+    print(img_data)
+
     # add new item to the database
     with db_context() as db:
         # attempt to add item to database
         result = create_item(CreateRequest(name=name, initial_stock=amt, max_checkout=max),
                              Response(), db=db)
+
+        # now create a new file in /static with the image
+        if img_data['file'] is not None:
+            dest = Path('static') / f'{name}.png'
+            with Image.open(img_data['file']) as img:
+                img.save(dest)
+
+        # clear temp file
+        img_data['file'] = None
+        img_data['path'] = None
+        img_data['suffix'] = None
 
         # display popup for success or failure
         if isinstance(result, MessageResponse):
@@ -164,18 +187,19 @@ def import_file(dest_cart, e):
     for row in data:
         dest_cart.add_to_cart(CartItem(id=1337, name=row[0], quantity=int(row[1]), max_checkout=12))
 
+
 def import_text(dest_cart, text):
     # first parse text to extract its data
     ui.notify("DATA GRABBED", close_button="close")
 
     print("\nTEXT=\n", text)
-    
+
     data = form_io.read_csv(StringIO(text))
     # now put the data into CartItems
     for row in data:
         dest_cart.add_to_cart(CartItem(id=1337, name=row[0], quantity=int(row[1]), max_checkout=12))
     print("\nDATA=\n", data)
-    
+
 
 def export_file(which_file):
     # dummy function for now, for exporting spreadsheet

@@ -88,7 +88,8 @@ class Inventory:
             with db_context() as db:
                 new_items = get_items(db)
                 self.table.rows.clear()
-                self.table.rows = [item.model_dump() for item in new_items]
+                self.table.rows = self.create_item_json(new_items)
+                self.table.update()
 
 
 def invalidate_inventory() -> None:
