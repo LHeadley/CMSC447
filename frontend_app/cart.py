@@ -69,6 +69,13 @@ class Cart:
         self.name_max_map = {item.name: item.max_checkout for item in items}
         self.name_id_map = {item.name: item.id for item in items}
 
+        if self.name_in is not None:
+            items = [key for key in self.name_id_map.keys()]
+            items.insert(0, "Select Item")
+            self.name_in.options = items
+            self.name_in.value = items[0]
+            self.name_in.update()
+
     def render(self) -> Self:
         """
         Render this cart on the page. The cart will automatically be updated when items are added.
