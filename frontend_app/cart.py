@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from starlette.responses import JSONResponse
 
 from frontend_app.inventory import invalidate_inventory, INV_VALID_FLAG
+from frontend_app.common import valid_input, make_item
 from models.request_schemas import ItemRequest, MultiItemRequest
 from models.response_schemas import MessageResponse
 from server import checkout_item, db_context, get_items
@@ -191,6 +192,45 @@ class Cart:
                 ui.button('Close', on_click=dialog.close)
         dialog.open()
 
+    # dialogue if attempted to restock cart items missing from database
+    def create_from_cart(self, result):
+        if isinstance(result, JSONResponse):
+            print("\n\nCREATING FROM CART\n\n")
+            
+            missing_jsonstr = json.loads(result.body.decode("utf-8"))["missing"]
+            missing = json.loads(missing_jsonstr)
+
+            for i in range(len(missing)):
+                
+                with ui.dialog() as create_popup, ui.card():
+                    ui.label(f'Item not found in database: {missing[i]["name"].upper()}')
+                    ui.label(f'Would you like to create it?')
+                    make_name = ui.input("Item Name", value=missing[i]["name"].upper())
+                    make_amt = ui.number("Amount In-Stock", value=missing[i]["quantity"])
+                    make_max = ui.number("Max Allowed per Checkout", value=0)
+
+
+                    print("\n\n\nmake_amt.name=", make_name.value)
+
+                    # set create-item button to take info from input fields
+                    def create_btn_action(name, amt, value):
+                        make_item(name, amt, value)
+                        create_popup.close()
+                    create_btn = ui.button('Create', on_click = lambda:create_btn_action(make_name.value, make_amt.value, make_max.value))
+
+                    # bind create-item button clickability to valid input; have to bind to all
+                    create_btn.bind_enabled_from(make_name, "value",
+                                               lambda v: valid_input(v, make_amt.value, make_max.value))
+                    create_btn.bind_enabled_from(make_amt, "value",
+                                               lambda v: valid_input(make_name.value.upper(), v, make_max.value))
+                    create_btn.bind_enabled_from(make_max, "value",
+                                               lambda v: valid_input(make_name.value.upper(), make_amt.value, v))
+
+                    cancel_btn = ui.button('Cancel', on_click=create_popup.close())
+
+                create_popup.open().wait()
+            
+        
     def clear_cart(self):
         self.rows.clear()
         self.table.update()
