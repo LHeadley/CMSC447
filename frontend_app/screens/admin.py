@@ -12,7 +12,7 @@ import server
 from frontend_app.analytics import AnalyticsRequest
 from frontend_app.cart import CartItem
 from frontend_app.common import show_inventory, show_cart, BTN_MAIN, ADMIN_MSG
-from frontend_app.inventory import invalidate_inventory, STUDENT_VISIBLE
+from frontend_app.inventory import invalidate_inventory, STUDENT_VISIBLE, TAGS_FIELD
 from models.request_schemas import CreateRequest
 from models.response_schemas import MessageResponse
 from server import db_context, create_item
@@ -74,6 +74,7 @@ def admin_page():
 
             # item information
             make_name = ui.input("Item Name", value="")
+            tags = ui.input("Item Tags (comma seperated)", value="")
             make_amt = ui.number("Amount In-Stock", value=0)
             make_max = ui.number("Max Allowed per Checkout", value=0)
 
@@ -81,15 +82,8 @@ def admin_page():
             image_upload = ui.upload(label='Image Upload', auto_upload=True).props('accept=.png,.jpg,.jpeg')
             image_upload.on_upload(lambda e: upload_image(e, img_data))
 
-            def clear_fields():
-                make_name.value = ''
-                make_amt.value = 0
-                make_max.value = 0
-                image_upload.reset()
-
             # set create-item button to take info from input fields
-            make_btn.on_click(lambda: make_item(make_name, make_amt, make_max, image_upload, img_data))
-            # make_btn.on_click(lambda: clear_fields())
+            make_btn.on_click(lambda: make_item(make_name, make_amt, make_max, image_upload, tags, img_data))
             # bind create-item button clickability to valid input; have to bind to all
             make_btn.bind_enabled_from(make_name, "value",
                                        lambda v: valid_input(v, make_amt.value, make_max.value))
@@ -164,7 +158,9 @@ def make_item(name_field: ui.input,
               amt_field: ui.number,
               max_field: ui.number,
               upload_field: ui.upload,
+              tags_field: ui.input,
               img_data: dict):
+    item_tags = [tag.strip() for tag in tags_field.value.split(',') if tag.strip() != '']
     name = name_field.value
     amt = amt_field.value
     max_val = max_field.value
@@ -180,6 +176,15 @@ def make_item(name_field: ui.input,
         # display popup for success or failure
         if isinstance(result, MessageResponse):
             # success
+            # add the item to the tags
+            tags = app.storage.general[TAGS_FIELD]
+            for tag in item_tags:
+                if tag not in tags:
+                    tags[tag] = []
+                tags[tag].append(name)
+
+            app.storage.general[TAGS_FIELD] = tags
+
             # now create a new file in /static with the image
             if img_data['file'] is not None:
                 dest = Path('static') / f'{name}.png'
@@ -194,6 +199,7 @@ def make_item(name_field: ui.input,
 
             # clear the input fields
             name_field.value = ''
+            tags_field.value = ''
             amt_field.value = 0
             max_field.value = 0
             upload_field.reset()
@@ -274,6 +280,13 @@ def delete_item(name: str):
             if name != 'default':
                 if os.path.exists(f'static/{name}.png'):
                     os.remove(f'static/{name}.png')
+
+            # if the item was deleted, remove it from the tags
+            tags = app.storage.general[TAGS_FIELD]
+            for tag, item_names in tags.items():
+                if name in item_names:
+                    item_names.remove(name)
+                    app.storage.general[TAGS_FIELD][tag] = item_names
 
         elif isinstance(result, JSONResponse):
             # failure (item already exists)

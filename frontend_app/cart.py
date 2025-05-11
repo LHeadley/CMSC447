@@ -157,9 +157,6 @@ class Cart:
                 self.table.update()
 
     def checkout(self):
-        """
-
-        """
         # convert cart items to item requests
         requests = []
         for item in self.rows:
