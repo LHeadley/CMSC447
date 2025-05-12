@@ -11,7 +11,7 @@ from starlette.responses import JSONResponse
 import server
 from frontend_app.analytics import AnalyticsRequest
 from frontend_app.cart import CartItem
-from frontend_app.common import show_inventory, show_cart, BTN_MAIN, ADMIN_MSG
+from frontend_app.common import show_inventory, show_cart, manage_dark_mode, BTN_MAIN, ADMIN_MSG
 from frontend_app.inventory import invalidate_inventory, STUDENT_VISIBLE
 from models.request_schemas import CreateRequest
 from models.response_schemas import MessageResponse
@@ -31,6 +31,9 @@ def admin_page():
     ui.page_title('Admin | Retriever Essentials')
     ui.label('Admin Dashboard')
     ui.colors(primary=app.storage.general[BTN_MAIN])
+
+    dark_mode = ui.dark_mode()
+    manage_dark_mode(dark_mode)
 
     # screen navigation
     with ui.card():
