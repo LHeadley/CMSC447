@@ -165,7 +165,7 @@ def make_item(name_field: ui.input,
               max_field: ui.number,
               upload_field: ui.upload,
               img_data: dict):
-    name = name_field.value.stip().upper()
+    name = name_field.value.strip().upper()
     amt = amt_field.value
     max_val = max_field.value
     print(img_data)
