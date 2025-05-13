@@ -161,7 +161,7 @@ def make_item(name_field: ui.input,
               tags_field: ui.input,
               img_data: dict):
     item_tags = [tag.strip() for tag in tags_field.value.split(',') if tag.strip() != '']
-    name = name_field.value
+    name = name_field.value.strip().upper()
     amt = amt_field.value
     max_val = max_field.value
     print(img_data)
