@@ -60,7 +60,7 @@ def read_csv(csvfile):
 def read_excel(xlsxfile):
 
     # first detect if the first row is a header
-    # simpler hacky algorithm... just detect if there are no integers
+    # simpler hacky algorithm... just detect if there are no integers in the first row
     header_detected = True
     first_line = pd.read_excel(xlsxfile, header=None, nrows=1)
     for cell in first_line.values.tolist()[0]:

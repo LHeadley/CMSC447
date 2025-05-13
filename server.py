@@ -232,14 +232,19 @@ def restock_item(request: Union[ItemRequest, MultiItemRequest], db: Session = De
         multi_request = request
 
     not_found = []
+    missing_items = [] # scuffed way of checking name + quantity from items missing from database
     for item_request in multi_request.items:
         item = db.query(Item).filter_by(name=item_request.name).first()
 
         if not item:
             not_found.append(item_request.name)
+            missing_items.append(item_request)
 
     if not_found:
-        return JSONResponse(status_code=404, content={'message': f'Item(s) {", ".join(not_found)} not found.'})
+
+        return JSONResponse(status_code=404, content={'message': f'Item(s) {", ".join(not_found)} not found.', # default message
+                                                      # a little verbose but just converts list to json
+                                                      'missing': f'[{",".join("{\"name\":\""+item.name+"\", \"quantity\":"+str(item.quantity)+"}" for item in missing_items)}]'}) 
 
     for item_request in multi_request.items:
         db.query(Item).filter_by(name=item_request.name).first().stock += item_request.quantity
