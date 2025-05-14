@@ -11,10 +11,9 @@ from starlette.responses import JSONResponse
 import server
 from frontend_app.analytics import AnalyticsRequest
 from frontend_app.cart import CartItem
-
 from frontend_app.admin_cart import AdminCart
-from frontend_app.common import valid_input, make_item, BTN_MAIN, ADMIN_MSG
-from frontend_app.inventory import Inventory, invalidate_inventory, STUDENT_VISIBLE, TAGS_FIELD
+from frontend_app.common import valid_input, make_item, upload_image, BTN_MAIN, ADMIN_MSG
+from frontend_app.inventory import Inventory, invalidate_inventory, STUDENT_VISIBLE
 
 from models.request_schemas import CreateRequest
 from models.response_schemas import MessageResponse
@@ -78,7 +77,6 @@ def admin_page():
 
             # item information
             make_name = ui.input("Item Name", value="")
-            tags = ui.input("Item Tags (comma seperated)", value="")
             make_amt = ui.number("Amount In-Stock", value=0)
             make_max = ui.number("Max Allowed per Checkout", value=0)
 
@@ -86,8 +84,15 @@ def admin_page():
             image_upload = ui.upload(label='Image Upload', auto_upload=True).props('accept=.png,.jpg,.jpeg')
             image_upload.on_upload(lambda e: upload_image(e, img_data))
 
+            def clear_fields():
+                make_name.value = ''
+                make_amt.value = 0
+                make_max.value = 0
+                image_upload.reset()
+
             # set create-item button to take info from input fields
-            make_btn.on_click(lambda: make_item(make_name, make_amt, make_max, image_upload, tags, img_data))
+            make_btn.on_click(lambda: make_item(make_name.value, make_amt.value, make_max.value, image_upload, img_data))
+            # make_btn.on_click(lambda: clear_fields())
             # bind create-item button clickability to valid input; have to bind to all
             make_btn.bind_enabled_from(make_name, "value",
                                        lambda v: valid_input(v, make_amt.value, make_max.value))
@@ -126,101 +131,6 @@ def analytics_page():
     ui.colors(primary=app.storage.general[BTN_MAIN])
     analytics = AnalyticsRequest()
     analytics.render()
-
-
-def valid_input(name: str, amt: int, max: int) -> bool:
-    # to check all potential input values for validity whenever one is changed
-    # TODO: validation directly in inputs? (next sprint?)
-
-    if len(name.strip()) <= 0:
-        return False
-
-    if amt <= 0:
-        return False
-
-    if max <= 0:
-        return False
-
-    return True
-
-
-def upload_image(e: events.UploadEventArguments, img_data):
-    if e.type not in ['image/png', 'image/jpeg']:
-        ui.notify('Only .png and .jpg files are allowed.')
-        return
-
-    if img_data['file'] is not None:
-        img_data['file'].close()
-
-    temp_img_file = tempfile.NamedTemporaryFile()
-    temp_img_file.write(e.content.read())
-    img_data['file'] = temp_img_file
-    img_data['path'] = temp_img_file.name
-    img_data['suffix'] = Path(e.name).suffix
-
-
-def make_item(name_field: ui.input,
-              amt_field: ui.number,
-              max_field: ui.number,
-              upload_field: ui.upload,
-              tags_field: ui.input,
-              img_data: dict):
-    item_tags = [tag.strip() for tag in tags_field.value.split(',') if tag.strip() != '']
-    name = name_field.value.strip().upper()
-    amt = amt_field.value
-    max_val = max_field.value
-    print(img_data)
-
-    # add new item to the database
-    with db_context() as db:
-        # attempt to add item to database
-        form_name = name
-        result = create_item(CreateRequest(name=form_name, initial_stock=amt, max_checkout=max_val),
-                             Response(), db=db)
-
-        # display popup for success or failure
-        if isinstance(result, MessageResponse):
-            # success
-            # add the item to the tags
-            tags = app.storage.general[TAGS_FIELD]
-            for tag in item_tags:
-                if tag not in tags:
-                    tags[tag] = []
-                tags[tag].append(name)
-
-            app.storage.general[TAGS_FIELD] = tags
-
-            # now create a new file in /static with the image
-            if img_data['file'] is not None:
-                dest = Path('static') / f'{name}.png'
-                with Image.open(img_data['file']) as img:
-                    img.save(dest)
-
-                # clear temp file
-                img_data['file'].close()
-                img_data['file'] = None
-                img_data['path'] = None
-                img_data['suffix'] = None
-
-            # clear the input fields
-            name_field.value = ''
-            tags_field.value = ''
-            amt_field.value = 0
-            max_field.value = 0
-            upload_field.reset()
-
-            with ui.dialog() as dialog, ui.card():
-                ui.label(result.message)
-                ui.button("Close", on_click=dialog.close)
-            dialog.open()
-        elif isinstance(result, JSONResponse):
-            # failure (item already exists)
-            with ui.dialog() as dialog, ui.card():
-                ui.label(f"Error {result.status_code}: {json.loads(result.body.decode())["message"]}")
-                ui.button("Close", on_click=dialog.close)
-            dialog.open()
-
-        invalidate_inventory()
 
 
 # functions for import/export #
@@ -286,13 +196,6 @@ def delete_item(name: str):
             if name != 'default':
                 if os.path.exists(f'static/{name}.png'):
                     os.remove(f'static/{name}.png')
-
-            # if the item was deleted, remove it from the tags
-            tags = app.storage.general[TAGS_FIELD]
-            for tag, item_names in tags.items():
-                if name in item_names:
-                    item_names.remove(name)
-                    app.storage.general[TAGS_FIELD][tag] = item_names
 
         elif isinstance(result, JSONResponse):
             # failure (item already exists)

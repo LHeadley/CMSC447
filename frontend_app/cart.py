@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from starlette.responses import JSONResponse
 
 from frontend_app.inventory import invalidate_inventory, INV_VALID_FLAG
-from frontend_app.common import valid_input, make_item
+from frontend_app.common import valid_input, make_item, upload_image
 from models.request_schemas import ItemRequest, MultiItemRequest
 from models.response_schemas import MessageResponse
 from server import checkout_item, db_context, get_items
@@ -69,13 +69,6 @@ class Cart:
             items = get_items(db)
         self.name_max_map = {item.name: item.max_checkout for item in items}
         self.name_id_map = {item.name: item.id for item in items}
-
-        if self.name_in is not None:
-            items = [key for key in self.name_id_map.keys()]
-            items.insert(0, "Select Item")
-            self.name_in.options = items
-            self.name_in.value = items[0]
-            self.name_in.update()
 
     def render(self) -> Self:
         """
@@ -165,6 +158,9 @@ class Cart:
                 self.table.update()
 
     def checkout(self):
+        """
+
+        """
         # convert cart items to item requests
         requests = []
         for item in self.rows:
@@ -210,25 +206,24 @@ class Cart:
                     ui.label(f'Item not found in database: {missing[i]["name"].upper()}')
                     ui.label(f'Would you like to create it?')
                     make_name = ui.input("Item Name", value=missing[i]["name"].upper())
-                    make_amt = ui.number("Amount In-Stock", value=missing[i]["quantity"])
                     make_max = ui.number("Max Allowed per Checkout", value=0)
 
 
-                    print("\n\n\nmake_amt.name=", make_name.value)
+                    img_data = {'path': None, 'suffix': None, 'file': None}
+                    image_upload = ui.upload(label='Image Upload', auto_upload=True).props('accept=.png,.jpg,.jpeg')
+                    image_upload.on_upload(lambda e: upload_image(e, img_data))
 
                     # set create-item button to take info from input fields
-                    def create_btn_action(name, amt, value):
-                        make_item(name, amt, value)
+                    def create_btn_action(name, value, img_upload, img_data):
+                        make_item(name, 0, value, img_upload, img_data)
                         create_popup.close()
-                    create_btn = ui.button('Create', on_click = lambda:create_btn_action(make_name.value, make_amt.value, make_max.value))
+                    create_btn = ui.button('Create', on_click = lambda:create_btn_action(make_name.value, make_max.value, image_upload, img_data))
 
                     # bind create-item button clickability to valid input; have to bind to all
                     create_btn.bind_enabled_from(make_name, "value",
-                                               lambda v: valid_input(v, make_amt.value, make_max.value))
-                    create_btn.bind_enabled_from(make_amt, "value",
-                                               lambda v: valid_input(make_name.value.upper(), v, make_max.value))
+                                               lambda v: valid_input(v, 1, make_max.value))
                     create_btn.bind_enabled_from(make_max, "value",
-                                               lambda v: valid_input(make_name.value.upper(), make_amt.value, v))
+                                               lambda v: valid_input(make_name.value.upper(), 1, v))
 
                     cancel_btn = ui.button('Cancel', on_click=create_popup.close())
 
