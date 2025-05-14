@@ -1,8 +1,8 @@
 from nicegui import APIRouter, ui, app
 
-from frontend_app.common import show_inventory, show_cart
-from frontend_app.inventory import STUDENT_VISIBLE
+from frontend_app.inventory import Inventory, STUDENT_VISIBLE
 from frontend_app.common import BTN_MAIN
+from frontend_app.cart import Cart
 
 router = APIRouter(prefix='/student')
 
@@ -20,6 +20,7 @@ def student_page(student_id: str):
     # functionality
     with ui.card():
         with ui.element().bind_visibility(app.storage.general, STUDENT_VISIBLE):
-            show_inventory()
+            Inventory().render()
         with ui.expansion("CART", value=True):
-            show_cart(student_id)
+            cart = Cart(cart_owner=student_id)
+            cart.render()

@@ -11,8 +11,11 @@ from starlette.responses import JSONResponse
 import server
 from frontend_app.analytics import AnalyticsRequest
 from frontend_app.cart import CartItem
-from frontend_app.common import show_inventory, show_cart, BTN_MAIN, ADMIN_MSG
-from frontend_app.inventory import invalidate_inventory, STUDENT_VISIBLE, TAGS_FIELD
+
+from frontend_app.admin_cart import AdminCart
+from frontend_app.common import valid_input, make_item, BTN_MAIN, ADMIN_MSG
+from frontend_app.inventory import Inventory, invalidate_inventory, STUDENT_VISIBLE, TAGS_FIELD
+
 from models.request_schemas import CreateRequest
 from models.response_schemas import MessageResponse
 from server import db_context, create_item
@@ -41,10 +44,11 @@ def admin_page():
     # inventory
     with ui.card():
         ui.switch(text='Toggle Student Inventory View').bind_value(app.storage.general, STUDENT_VISIBLE)
-        show_inventory()
+        Inventory().render()
 
         with ui.expansion("Cart", value=True):
-            curr_cart = show_cart('admin', True)
+            curr_cart = AdminCart(cart_owner=None)
+            curr_cart.render()
 
     # creating and importing
     with ui.card():
@@ -115,6 +119,7 @@ def admin_page():
             message_btn.on_click(lambda: post_message(message_area.value))
 
 
+            
 @router.page('/analytics')
 def analytics_page():
     ui.button('Home Page', on_click=lambda: ui.navigate.to('/admin'))
@@ -169,7 +174,7 @@ def make_item(name_field: ui.input,
     # add new item to the database
     with db_context() as db:
         # attempt to add item to database
-        form_name = name.strip().upper()
+        form_name = name
         result = create_item(CreateRequest(name=form_name, initial_stock=amt, max_checkout=max_val),
                              Response(), db=db)
 
@@ -231,7 +236,7 @@ def import_file(dest_cart, e):
 
     # now put the data into CartItems
     for row in data:
-        dest_cart.add_to_cart(CartItem(id=1337, name=row[0], quantity=int(row[1]), max_checkout=12))
+        dest_cart.add_to_cart(CartItem(id=1337, name=row[0].upper(), quantity=int(row[1]), max_checkout=12))
 
 
 def import_text(dest_cart, text):
@@ -243,10 +248,11 @@ def import_text(dest_cart, text):
     data = form_io.read_csv(StringIO(text))
     # now put the data into CartItems
     for row in data:
-        dest_cart.add_to_cart(CartItem(id=1337, name=row[0], quantity=int(row[1]), max_checkout=12))
+        dest_cart.add_to_cart(CartItem(id=1337, name=row[0].upper(), quantity=int(row[1]), max_checkout=12))
     print("\nDATA=\n", data)
 
 
+    
 def export_file(which_file):
     # dummy function for now, for exporting spreadsheet
     ui.notify(f"FILE SENT ({which_file})", close_button="close")
