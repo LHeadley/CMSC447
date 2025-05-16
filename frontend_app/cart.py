@@ -5,8 +5,8 @@ from nicegui import ui, app
 from pydantic import BaseModel
 from starlette.responses import JSONResponse
 
-from frontend_app.inventory import invalidate_inventory, INV_VALID_FLAG
 from frontend_app.common import valid_input, make_item, upload_image
+from frontend_app.inventory import invalidate_inventory, INV_VALID_FLAG
 from models.request_schemas import ItemRequest, MultiItemRequest
 from models.response_schemas import MessageResponse
 from server import checkout_item, db_context, get_items
@@ -128,7 +128,7 @@ class Cart:
         Renders the buttons for the cart, excluding the item input.
         """
         with ui.row():
-            #checkout button
+            # checkout button
             self.checkout_btn = ui.button('Checkout')
             self.checkout_btn.on_click(lambda: self.checkout())
 
@@ -196,40 +196,40 @@ class Cart:
     def create_from_cart(self, result):
         if isinstance(result, JSONResponse):
             print("\n\nCREATING FROM CART\n\n")
-            
+
             missing_jsonstr = json.loads(result.body.decode("utf-8"))["missing"]
-            missing = json.loads(missing_jsonstr)
+            missing = json.loads(missing_jsonstr)[0]
 
-            for i in range(len(missing)):
-                
-                with ui.dialog() as create_popup, ui.card():
-                    ui.label(f'Item not found in database: {missing[i]["name"].upper()}')
-                    ui.label(f'Would you like to create it?')
-                    make_name = ui.input("Item Name", value=missing[i]["name"].upper())
-                    make_max = ui.number("Max Allowed per Checkout", value=0)
+            with ui.dialog() as create_popup, ui.card():
+                ui.label(f'Item not found in database: {missing["name"].upper()}')
+                ui.label(f'Would you like to create it?')
+                make_name = ui.input("Item Name", value=missing["name"].upper())
+                make_max = ui.number("Max Allowed per Checkout", value=0)
+
+                img_data = {'path': None, 'suffix': None, 'file': None}
+                image_upload = ui.upload(label='Image Upload', auto_upload=True).props('accept=.png,.jpg,.jpeg')
+                image_upload.on_upload(lambda e: upload_image(e, img_data))
+
+                # set create-item button to take info from input fields
+                def create_btn_action(name, value, img_upload, img_data):
+                    make_item(name, 0, value, img_upload, img_data)
+                    create_popup.close()
+
+                create_btn = ui.button('Create',
+                                       on_click=lambda: create_btn_action(make_name.value, make_max.value, image_upload,
+                                                                          img_data))
+
+                # bind create-item button clickability to valid input; have to bind to all
+                create_btn.bind_enabled_from(make_name, "value",
+                                             lambda v: valid_input(v, 1, make_max.value))
+                create_btn.bind_enabled_from(make_max, "value",
+                                             lambda v: valid_input(make_name.value.upper(), 1, v))
+
+                cancel_btn = ui.button('Cancel', on_click=create_popup.close())
+
+                create_popup.open()
 
 
-                    img_data = {'path': None, 'suffix': None, 'file': None}
-                    image_upload = ui.upload(label='Image Upload', auto_upload=True).props('accept=.png,.jpg,.jpeg')
-                    image_upload.on_upload(lambda e: upload_image(e, img_data))
-
-                    # set create-item button to take info from input fields
-                    def create_btn_action(name, value, img_upload, img_data):
-                        make_item(name, 0, value, img_upload, img_data)
-                        create_popup.close()
-                    create_btn = ui.button('Create', on_click = lambda:create_btn_action(make_name.value, make_max.value, image_upload, img_data))
-
-                    # bind create-item button clickability to valid input; have to bind to all
-                    create_btn.bind_enabled_from(make_name, "value",
-                                               lambda v: valid_input(v, 1, make_max.value))
-                    create_btn.bind_enabled_from(make_max, "value",
-                                               lambda v: valid_input(make_name.value.upper(), 1, v))
-
-                    cancel_btn = ui.button('Cancel', on_click=create_popup.close())
-
-                create_popup.open().wait()
-            
-        
-    def clear_cart(self):
-        self.rows.clear()
-        self.table.update()
+def clear_cart(self):
+    self.rows.clear()
+    self.table.update()
