@@ -11,11 +11,21 @@ from models.response_schemas import MessageResponse
 from server import db_context, create_item
 from frontend_app.inventory import Inventory, invalidate_inventory
 
+from nicegui import app
+
 # for button/color theming
 BTN_MAIN = 'btn_main_color'
 # for the admin message board
 ADMIN_MSG = 'admin_board_message'
+# bool for dark mode
+DARK_MODE = 'dark_mode_active'
 
+
+def manage_dark_mode(dark_mode):
+    if app.storage.general[DARK_MODE]:
+        dark_mode.enable()
+       
+      
 #def show_cart(cart_owner: str | None = None, is_admin: bool = False) -> Cart | AdminCart:
 #    """
 #    Creates a cart and displays it.

@@ -1,9 +1,10 @@
 from nicegui import app as guiapp
 from nicegui import ui
 
-from frontend_app.common import BTN_MAIN, ADMIN_MSG
+from frontend_app.common import BTN_MAIN, ADMIN_MSG, DARK_MODE, manage_dark_mode
 from frontend_app.inventory import INV_VALID_FLAG, TAGS_FIELD
 from frontend_app.inventory import STUDENT_VISIBLE
+
 from frontend_app.screens import admin, student
 from server import app
 
@@ -17,6 +18,11 @@ def show():
     ui.page_title('Login | Retriever Essentials')
     ui.colors(primary=guiapp.storage.general[BTN_MAIN])
     ui.button.default_classes("!text-black")
+
+    dark_mode = ui.dark_mode()
+    manage_dark_mode(dark_mode)
+    dark_mode_switch = ui.switch("Dark Mode", value=guiapp.storage.general[DARK_MODE])
+    dark_mode_switch.on_value_change(lambda v: change_dark_mode(v.value, dark_mode))
 
     with ui.column():
         ui.label('Please select your role:')
@@ -48,6 +54,7 @@ if TAGS_FIELD not in guiapp.storage.general:
 
 # theming/colors
 guiapp.storage.general[BTN_MAIN] = "#FDB515" # applied through ui.colors
+guiapp.storage.general[DARK_MODE] = False
 # admin message board
 guiapp.storage.general[ADMIN_MSG] = "*announcements from staff go here*"
 
@@ -55,3 +62,10 @@ app.include_router(admin.router)
 app.include_router(student.router)
 guiapp.add_static_files('/static', 'static')
 ui.run_with(app)
+
+def change_dark_mode(val: bool, dark_mode):
+    guiapp.storage.general[DARK_MODE] = val
+    if val:
+        dark_mode.enable()
+    else:
+        dark_mode.disable()
