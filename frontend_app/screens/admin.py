@@ -11,8 +11,12 @@ from starlette.responses import JSONResponse
 import server
 from frontend_app.analytics import AnalyticsRequest
 from frontend_app.cart import CartItem
+
 from frontend_app.common import show_inventory, show_cart, manage_dark_mode, BTN_MAIN, ADMIN_MSG
-from frontend_app.inventory import invalidate_inventory, STUDENT_VISIBLE
+from frontend_app.admin_cart import AdminCart
+from frontend_app.common import valid_input, make_item, upload_image
+from frontend_app.inventory import Inventory, invalidate_inventory, STUDENT_VISIBLE
+
 from models.request_schemas import CreateRequest
 from models.response_schemas import MessageResponse
 from server import db_context, create_item
@@ -44,10 +48,11 @@ def admin_page():
     # inventory
     with ui.card():
         ui.switch(text='Toggle Student Inventory View').bind_value(app.storage.general, STUDENT_VISIBLE)
-        show_inventory()
+        Inventory().render()
 
         with ui.expansion("Cart", value=True):
-            curr_cart = show_cart('admin', True)
+            curr_cart = AdminCart(cart_owner=None)
+            curr_cart.render()
 
     # creating and importing
     with ui.card():
@@ -91,7 +96,7 @@ def admin_page():
                 image_upload.reset()
 
             # set create-item button to take info from input fields
-            make_btn.on_click(lambda: make_item(make_name, make_amt, make_max, image_upload, img_data))
+            make_btn.on_click(lambda: make_item(make_name.value, make_amt.value, make_max.value, image_upload, img_data))
             # make_btn.on_click(lambda: clear_fields())
             # bind create-item button clickability to valid input; have to bind to all
             make_btn.bind_enabled_from(make_name, "value",
@@ -124,95 +129,13 @@ def admin_page():
             message_btn.on_click(lambda: post_message(message_area.value))
 
 
+            
 @router.page('/analytics')
 def analytics_page():
     ui.button('Home Page', on_click=lambda: ui.navigate.to('/admin'))
     ui.colors(primary=app.storage.general[BTN_MAIN])
     analytics = AnalyticsRequest()
     analytics.render()
-
-
-def valid_input(name: str, amt: int, max: int) -> bool:
-    # to check all potential input values for validity whenever one is changed
-    # TODO: validation directly in inputs? (next sprint?)
-
-    if len(name.strip()) <= 0:
-        return False
-
-    if amt <= 0:
-        return False
-
-    if max <= 0:
-        return False
-
-    return True
-
-
-def upload_image(e: events.UploadEventArguments, img_data):
-    if e.type not in ['image/png', 'image/jpeg']:
-        ui.notify('Only .png and .jpg files are allowed.')
-        return
-
-    if img_data['file'] is not None:
-        img_data['file'].close()
-
-    temp_img_file = tempfile.NamedTemporaryFile()
-    temp_img_file.write(e.content.read())
-    img_data['file'] = temp_img_file
-    img_data['path'] = temp_img_file.name
-    img_data['suffix'] = Path(e.name).suffix
-
-
-def make_item(name_field: ui.input,
-              amt_field: ui.number,
-              max_field: ui.number,
-              upload_field: ui.upload,
-              img_data: dict):
-    name = name_field.value
-    amt = amt_field.value
-    max_val = max_field.value
-    print(img_data)
-
-    # add new item to the database
-    with db_context() as db:
-        # attempt to add item to database
-        form_name = name.strip().upper()
-        result = create_item(CreateRequest(name=form_name, initial_stock=amt, max_checkout=max_val),
-                             Response(), db=db)
-
-        # display popup for success or failure
-        if isinstance(result, MessageResponse):
-            # success
-            # now create a new file in /static with the image
-            if img_data['file'] is not None:
-                dest = Path('static') / f'{name}.png'
-                with Image.open(img_data['file']) as img:
-                    img.save(dest)
-
-                # clear temp file
-                img_data['file'].close()
-                img_data['file'] = None
-                img_data['path'] = None
-                img_data['suffix'] = None
-
-            # clear the input fields
-            name_field.value = ''
-            amt_field.value = 0
-            max_field.value = 0
-            upload_field.reset()
-
-            with ui.dialog() as dialog, ui.card():
-                ui.label(result.message)
-                ui.button("Close", on_click=dialog.close)
-            dialog.open()
-        elif isinstance(result, JSONResponse):
-            # failure (item already exists)
-            with ui.dialog() as dialog, ui.card():
-                ui.label(f"Error {result.status_code}: {json.loads(result.body.decode())["message"]}")
-                ui.button("Close", on_click=dialog.close)
-            dialog.open()
-
-        invalidate_inventory()
 
 
 # functions for import/export #
@@ -228,7 +151,7 @@ def import_file(dest_cart, e):
 
     # now put the data into CartItems
     for row in data:
-        dest_cart.add_to_cart(CartItem(id=1337, name=row[0], quantity=int(row[1]), max_checkout=12))
+        dest_cart.add_to_cart(CartItem(id=1337, name=row[0].upper(), quantity=int(row[1]), max_checkout=12))
 
 
 def import_text(dest_cart, text):
@@ -240,10 +163,11 @@ def import_text(dest_cart, text):
     data = form_io.read_csv(StringIO(text))
     # now put the data into CartItems
     for row in data:
-        dest_cart.add_to_cart(CartItem(id=1337, name=row[0], quantity=int(row[1]), max_checkout=12))
+        dest_cart.add_to_cart(CartItem(id=1337, name=row[0].upper(), quantity=int(row[1]), max_checkout=12))
     print("\nDATA=\n", data)
 
 
+    
 def export_file(which_file):
     # dummy function for now, for exporting spreadsheet
     ui.notify(f"FILE SENT ({which_file})", close_button="close")

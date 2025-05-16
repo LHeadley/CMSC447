@@ -1,10 +1,11 @@
 from nicegui import ui
 
+from starlette.responses import JSONResponse
+
 from frontend_app.cart import Cart, CartItem
 from frontend_app.inventory import invalidate_inventory
 from models.request_schemas import ItemRequest, MultiItemRequest
 from server import db_context, restock_item
-
 
 class AdminCart(Cart):
     def __init__(self, cart_owner=None):
@@ -43,8 +44,17 @@ class AdminCart(Cart):
         # pass multi request to checkout_item function
         with db_context() as db:
             result = restock_item(request=multi_request, db=db)
-            self.display_result(result)
+
+            if isinstance(result, JSONResponse) and result.status_code == 404:
+                # dialogue if item is in cart but missing from database
+                self.create_from_cart(result)
+            else:
+                # display message to user 
+                self.display_result(result)
+
             invalidate_inventory()
+
+            
 
     def add_to_cart(self, item: CartItem) -> None:
         """

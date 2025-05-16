@@ -1,11 +1,10 @@
 from nicegui import app as guiapp
 from nicegui import ui
 
-from frontend_app.common import BTN_MAIN
-from frontend_app.inventory import INV_VALID_FLAG
+from frontend_app.common import BTN_MAIN, ADMIN_MSG, DARK_MODE, manage_dark_mode
+from frontend_app.inventory import INV_VALID_FLAG, TAGS_FIELD
 from frontend_app.inventory import STUDENT_VISIBLE
 
-from frontend_app.common import BTN_MAIN, ADMIN_MSG, DARK_MODE, manage_dark_mode
 from frontend_app.screens import admin, student
 from server import app
 
@@ -45,6 +44,13 @@ def show():
 guiapp.storage.general[INV_VALID_FLAG] = 0
 if STUDENT_VISIBLE not in guiapp.storage.general:
     guiapp.storage.general[STUDENT_VISIBLE] = True
+
+# tags are a dictionary of tag names to a list of item names
+# so tags['tag_name'] = [item_name_1, item_name_2, ...]
+# this is because we want to be able to search for items by tag
+if TAGS_FIELD not in guiapp.storage.general:
+    guiapp.storage.general[TAGS_FIELD] = {}
+
 
 # theming/colors
 guiapp.storage.general[BTN_MAIN] = "#FDB515" # applied through ui.colors
